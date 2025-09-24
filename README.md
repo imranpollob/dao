@@ -1,11 +1,13 @@
 # 🏛️ Grant DAO – Community Grants Governance
 
 A **Decentralized Autonomous Organization (DAO)** where members holding governance tokens (`GDT`) can propose, vote, and fund community projects from a shared treasury.  
-This project is built with **Foundry** and **OpenZeppelin Contracts v5.4.0**, implementing modern governance best practices (Governor + Timelock + Treasury vault).
+
+
+Read this **[detailed blog post](blog-post1.md)** to get familiar with DAOs and how this project works.
 
 ---
 
-## ✨ Features
+## 📜 Contracts Overview
 
 - **Governance Token (`GDT`)**  
   - ERC20 with `ERC20Permit` (gasless approvals)  
@@ -45,35 +47,6 @@ This project is built with **Foundry** and **OpenZeppelin Contracts v5.4.0**, im
   - Comprehensive coverage: propose → vote → queue → execute → funds transferred
   - Security testing: access controls, reentrancy protection, proper state transitions
 
----
-
-## 📂 Project Structure
-
-```
-
-.
-├── src
-│   ├── GrantToken.sol         # ERC20Votes governance token
-│   ├── Treasury.sol           # Vault owned by Timelock
-│   ├── GrantGovernor.sol      # Governor with Timelock integration
-│   └── utils
-│       └── ProposalBuilder.sol # Helpers for ETH/ERC20 grant proposals
-│
-├── script
-│   ├── Deploy.s.sol           # Deploys all contracts and wires roles
-│   ├── ProposeEthGrant.s.sol  # Create proposal to send ETH from Treasury
-│   ├── ProposeErc20Grant.s.sol# Create proposal to send ERC20 tokens
-│   └── QueueAndExecute.s.sol  # Queues + executes a passed proposal
-│
-├── test
-│   ├── GovernanceFlow.t.sol   # End-to-end governance flows (ETH/ERC20 grants, rejection cases)
-│   └── TreasurySmoke.t.sol    # Deployment validation, treasury security, and access controls
-│
-├── foundry.toml
-├── remappings.txt
-└── README.md
-
-````
 
 ---
 
@@ -84,11 +57,10 @@ This project is built with **Foundry** and **OpenZeppelin Contracts v5.4.0**, im
 - Git + Node.js (optional for frontend work)
 
 ### Install
+
 ```bash
-git clone <this-repo>
-cd grant-dao
 forge install
-````
+```
 
 ### Build
 
@@ -261,31 +233,6 @@ cast send <TREASURY> --value 10ether --private-key $PRIVATE_KEY --rpc-url http:/
 
 ---
 
-## 📜 Contracts Overview
-
-* **GrantToken**
-
-  * `ERC20`, `ERC20Permit`, `ERC20Votes`
-  * Snapshotted voting power
-
-* **GrantGovernor**
-
-  * Inherits `Governor`, `GovernorSettings`, `GovernorCountingSimple`, `GovernorVotes`, `GovernorVotesQuorumFraction`, `GovernorTimelockControl`
-  * Configurable threshold, quorum, voting delay/period
-  * Works with Timelock
-
-* **Treasury**
-
-  * Minimal vault
-  * `execute(target, value, data)` callable only by Timelock
-
-* **TimelockController (OZ)**
-
-  * Holds Treasury ownership
-  * Enforces execution delay
-  * Governor is proposer, anyone can execute
-
----
 
 ## 🔒 Security Considerations
 
