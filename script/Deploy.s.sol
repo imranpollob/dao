@@ -7,6 +7,7 @@ import {Treasury} from "../src/Treasury.sol";
 import {GrantGovernor} from "../src/GrantGovernor.sol";
 import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol";
 import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
+import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
 
 contract Deploy is Script {
     // ---- PARAMETERS: tweak here or pass via env/CLI ----
@@ -15,9 +16,9 @@ contract Deploy is Script {
 
     // Governance params (block-based; adjust for your chain)
     uint256 public constant PROPOSAL_THRESHOLD = 100_000e18; // absolute tokens (e.g., 1% of 10M)
-    uint256 public constant VOTING_DELAY = 7200;   // ~1 day on 12s blocks
+    uint256 public constant VOTING_DELAY = 7200; // ~1 day on 12s blocks
     uint256 public constant VOTING_PERIOD = 21600; // ~3 days
-    uint256 public constant QUORUM_PERCENT = 4;    // 4% quorum
+    uint256 public constant QUORUM_PERCENT = 4; // 4% quorum
 
     address[] proposers;
     address[] executors;
@@ -53,13 +54,13 @@ contract Deploy is Script {
         //    - EXECUTOR_ROLE -> address(0) (open execution) or set to Governor for stricter execution
         bytes32 PROPOSER_ROLE = timelock.PROPOSER_ROLE();
         bytes32 EXECUTOR_ROLE = timelock.EXECUTOR_ROLE();
-        bytes32 TIMELOCK_ADMIN_ROLE = timelock.TIMELOCK_ADMIN_ROLE();
+        bytes32 ADMIN_ROLE = timelock.DEFAULT_ADMIN_ROLE();
 
         timelock.grantRole(PROPOSER_ROLE, address(governor));
         timelock.grantRole(EXECUTOR_ROLE, address(0)); // anyone can execute after delay
 
         // 6) Renounce Timelock admin from deployer to remove backdoor
-        timelock.renounceRole(TIMELOCK_ADMIN_ROLE, deployer);
+        timelock.renounceRole(ADMIN_ROLE, deployer);
 
         // 7) Optional: delegate deployer’s voting power to self (so you can propose/vote)
         //    Users MUST delegate to have voting power.

@@ -13,21 +13,22 @@ library ProposalBuilder {
     )
         internal
         pure
-        returns (address[] memory targets, uint256[] memory values, bytes[] memory calldatas, string memory desc)
+        returns (
+            address[] memory targets,
+            uint256[] memory values,
+            bytes[] memory calldatas,
+            string memory desc
+        )
     {
-        targets = new address;
-        values = new uint256;
-        calldatas = new bytes;
+        targets = new address[](1);
+        values = new uint256[](1);
+        calldatas = new bytes[](1);
 
         // call Treasury.execute(recipient, amountWei, "")
         targets[0] = address(treasury);
         values[0] = 0;
-        calldatas[0] = abi.encodeWithSelector(
-            Treasury.execute.selector,
-            recipient,
-            amountWei,
-            bytes("")
-        );
+        calldatas[0] =
+            abi.encodeWithSelector(Treasury.execute.selector, recipient, amountWei, bytes(""));
         desc = description;
     }
 
@@ -43,23 +44,24 @@ library ProposalBuilder {
     )
         internal
         pure
-        returns (address[] memory targets, uint256[] memory values, bytes[] memory calldatas, string memory desc)
+        returns (
+            address[] memory targets,
+            uint256[] memory values,
+            bytes[] memory calldatas,
+            string memory desc
+        )
     {
-        targets = new address;
-        values = new uint256;
-        calldatas = new bytes;
+        targets = new address[](1);
+        values = new uint256[](1);
+        calldatas = new bytes[](1);
 
         // IERC20(erc20).transfer(to, amount) via Treasury.execute
-        bytes memory data = abi.encodeWithSelector(bytes4(keccak256("transfer(address,uint256)")), to, amount);
+        bytes memory data =
+            abi.encodeWithSelector(bytes4(keccak256("transfer(address,uint256)")), to, amount);
 
         targets[0] = address(treasury);
         values[0] = 0;
-        calldatas[0] = abi.encodeWithSelector(
-            Treasury.execute.selector,
-            erc20,
-            0,
-            data
-        );
+        calldatas[0] = abi.encodeWithSelector(Treasury.execute.selector, erc20, 0, data);
         desc = description;
     }
 }

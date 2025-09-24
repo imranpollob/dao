@@ -21,14 +21,15 @@ contract GovernanceFlow is Test {
 
     uint256 constant INIT_SUPPLY = 1_000_000e18;
     uint256 constant PROPOSAL_THRESHOLD = 10_000e18;
-    uint256 constant VOTING_DELAY = 1;    // small for test
-    uint256 constant VOTING_PERIOD = 5;   // small for test
-    uint256 constant QUORUM_PERCENT = 4;  // 4%
+    uint256 constant VOTING_DELAY = 1; // small for test
+    uint256 constant VOTING_PERIOD = 5; // small for test
+    uint256 constant QUORUM_PERCENT = 4; // 4%
     uint256 constant TIMELOCK_DELAY = 2 days;
 
     function setUp() public {
         token = new GrantToken(INIT_SUPPLY, deployer);
-        timelock = new TimelockController(TIMELOCK_DELAY, new address, new address, deployer);
+        timelock =
+            new TimelockController(TIMELOCK_DELAY, new address[](0), new address[](0), deployer);
         governor = new GrantGovernor(
             IVotes(address(token)),
             timelock,
@@ -42,7 +43,7 @@ contract GovernanceFlow is Test {
         // Roles + renounce admin
         timelock.grantRole(timelock.PROPOSER_ROLE(), address(governor));
         timelock.grantRole(timelock.EXECUTOR_ROLE(), address(0));
-        timelock.renounceRole(timelock.TIMELOCK_ADMIN_ROLE(), deployer);
+        timelock.renounceRole(timelock.DEFAULT_ADMIN_ROLE(), deployer);
 
         // delegate votes
         token.transfer(voterA, 200_000e18);
@@ -56,8 +57,12 @@ contract GovernanceFlow is Test {
 
     function testEndToEnd_EthGrant() public {
         // Build ETH grant proposal
-        (address[] memory targets, uint256[] memory values, bytes[] memory calldatas, string memory desc) =
-            ProposalBuilder.buildEthGrant(treasury, grantee, 5 ether, "Grant: 5 ETH to BEEF");
+        (
+            address[] memory targets,
+            uint256[] memory values,
+            bytes[] memory calldatas,
+            string memory desc
+        ) = ProposalBuilder.buildEthGrant(treasury, grantee, 5 ether, "Grant: 5 ETH to BEEF");
 
         // Propose (deployer has delegated votes ≥ threshold)
         uint256 proposalId = governor.propose(targets, values, calldatas, desc);
