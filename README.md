@@ -1,4 +1,40 @@
-# 🏛️ Grant DAO – Community Grants Governance
+# 🏛️ Grant DAO – Comm---
+
+## 🚀 Quick Commands
+
+### Get Help
+```bash
+# Show all available commands
+npm run help
+```
+
+### Essential Commands
+```bash
+# Start full development environment (blockchain + frontend)
+npm run dev
+
+# Start only blockchain
+npm run blockchain
+
+# Start only frontend (requires blockchain running)
+npm run frontend
+
+# Deploy contracts to local blockchain
+npm run deploy
+
+# Test smart contracts
+npm run test
+
+# Build frontend
+npm run build
+
+# Clean caches and builds
+npm run clean
+```
+
+---
+
+## �📜 Contracts Overviewty Grants Governance
 
 A **Decentralized Autonomous Organization (DAO)** where members holding governance tokens (`GDT`) can propose, vote, and fund community projects from a shared treasury.
 

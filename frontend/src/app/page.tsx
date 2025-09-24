@@ -9,11 +9,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Wallet, Coins, Vote, Clock } from 'lucide-react';
+import { Loader2, Wallet, Coins, Vote } from 'lucide-react';
+import EthGrantForm from '@/components/EthGrantForm';
+import Erc20GrantForm from '@/components/Erc20GrantForm';
+import ProposalList from '@/components/ProposalList';
 
 export default function Dashboard() {
   const { address, isConnected, chain } = useAccount();
   const [isLoading, setIsLoading] = useState(true);
+  const [currentView, setCurrentView] = useState<'dashboard' | 'eth-grant' | 'erc20-grant'>('dashboard');
 
   // Treasury balance
   const { data: treasuryEthBalance } = useBalance({
@@ -56,6 +60,19 @@ export default function Dashboard() {
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
+  }
+
+  const handleBackToDashboard = () => {
+    setCurrentView('dashboard');
+  };
+
+  // Render different views based on current state
+  if (currentView === 'eth-grant') {
+    return <EthGrantForm onBack={handleBackToDashboard} />;
+  }
+
+  if (currentView === 'erc20-grant') {
+    return <Erc20GrantForm onBack={handleBackToDashboard} />;
   }
 
   return (
@@ -169,21 +186,7 @@ export default function Dashboard() {
               </TabsList>
 
               <TabsContent value="proposals" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Active Proposals</CardTitle>
-                    <CardDescription>
-                      View and vote on active governance proposals.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-center py-8 text-gray-500">
-                      <Clock className="h-12 w-12 mx-auto mb-4" />
-                      <p>No active proposals at the moment.</p>
-                      <p className="text-sm">Check back later or create a new proposal.</p>
-                    </div>
-                  </CardContent>
-                </Card>
+                <ProposalList />
               </TabsContent>
 
               <TabsContent value="create" className="space-y-4">
@@ -196,11 +199,18 @@ export default function Dashboard() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <Button className="h-20 flex flex-col items-center justify-center space-y-2">
+                      <Button
+                        className="h-20 flex flex-col items-center justify-center space-y-2"
+                        onClick={() => setCurrentView('eth-grant')}
+                      >
                         <Coins className="h-6 w-6" />
                         <span>ETH Grant Proposal</span>
                       </Button>
-                      <Button variant="outline" className="h-20 flex flex-col items-center justify-center space-y-2">
+                      <Button
+                        variant="outline"
+                        className="h-20 flex flex-col items-center justify-center space-y-2"
+                        onClick={() => setCurrentView('erc20-grant')}
+                      >
                         <Coins className="h-6 w-6" />
                         <span>ERC20 Grant Proposal</span>
                       </Button>

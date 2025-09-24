@@ -28,16 +28,16 @@ export const CONTRACT_ADDRESSES = {
 } as const;
 
 // Import ABIs
-const GrantTokenABI: any[] = [];
-const GrantGovernorABI: any[] = [];
-const TreasuryABI: any[] = [];
-const TimelockControllerABI: any[] = [];
+import GrantTokenABI from '../abis/GrantToken.json';
+import GrantGovernorABI from '../abis/GrantGovernor.json';
+import TreasuryABI from '../abis/Treasury.json';
+import TimelockControllerABI from '../abis/TimelockController.json';
 
 export const CONTRACT_ABIS = {
-  GrantToken: GrantTokenABI,
-  GrantGovernor: GrantGovernorABI,
-  Treasury: TreasuryABI,
-  TimelockController: TimelockControllerABI,
+  GrantToken: GrantTokenABI as any,
+  GrantGovernor: GrantGovernorABI as any,
+  Treasury: TreasuryABI as any,
+  TimelockController: TimelockControllerABI as any,
 } as const;
 
 // Contract configurations
