@@ -1,7 +1,7 @@
 # 🏛️ Grant DAO – Community Grants Governance
 
 A **Decentralized Autonomous Organization (DAO)** where members holding governance tokens (`GDT`) can propose, vote, and fund community projects from a shared treasury.  
-This project is built with **Foundry** and **OpenZeppelin Contracts v5**, implementing modern governance best practices (Governor + Timelock + Treasury vault).
+This project is built with **Foundry** and **OpenZeppelin Contracts v4.9.0**, implementing modern governance best practices (Governor + Timelock + Treasury vault).
 
 ---
 
@@ -84,7 +84,7 @@ This project is built with **Foundry** and **OpenZeppelin Contracts v5**, implem
 ```bash
 git clone <this-repo>
 cd grant-dao
-forge install openzeppelin/openzeppelin-contracts@v5.0.2 foundry-rs/forge-std@v1.9.6 --no-commit
+forge install
 ````
 
 ### Build
@@ -98,6 +98,63 @@ forge build
 ```bash
 forge test -vv
 ```
+
+---
+
+## 🚀 Quick Start Workflow
+
+Follow these steps to deploy and interact with the Grant DAO locally.
+
+### 1. Prerequisites
+- Install Foundry: `curl -L https://foundry.paradigm.xyz | bash && source ~/.zshrc && foundryup`
+- Create `.env` file:
+  ```
+  RPC_URL=http://127.0.0.1:8545
+  PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+  ```
+
+### 2. Start Local Testnet
+```bash
+anvil
+```
+(This runs a local Ethereum node at `http://127.0.0.1:8545`.)
+
+### 3. Deploy Contracts
+In a new terminal:
+```bash
+source .env
+forge script script/Deploy.s.sol:Deploy --rpc-url $RPC_URL --private-key $PRIVATE_KEY --broadcast -vvvv
+```
+Note the deployed addresses (GrantToken, Treasury, Governor, Timelock).
+
+### 4. Run Tests (Verify Deployment)
+```bash
+forge test -vvvv
+```
+
+### 5. Propose a Grant
+Update `.env` with deployed addresses:
+```
+TREASURY=0x...
+GOVERNOR=0x...
+```
+Then propose an ETH grant:
+```bash
+forge script script/ProposeEthGrant.s.sol:ProposeEthGrant --rpc-url $RPC_URL --private-key $PRIVATE_KEY --broadcast
+```
+Record the `proposalId`.
+
+### 6. Vote on Proposal
+```bash
+cast send $GOVERNOR "castVote(uint256,uint8)" <proposalId> 1 --private-key $PRIVATE_KEY --rpc-url $RPC_URL
+```
+
+### 7. Queue and Execute
+```bash
+forge script script/QueueAndExecute.s.sol:QueueAndExecute --rpc-url $RPC_URL --private-key $PRIVATE_KEY --broadcast --sig "run(uint256)" <proposalId>
+```
+
+For detailed governance mechanics, see the [Governance Workflow](#-governance-workflow) section below.
 
 ---
 
