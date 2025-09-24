@@ -2,9 +2,6 @@
 cache/
 out/
 
-# Dependencies (installed via forge install)
-lib/
-
 # Ignores development broadcast logs
 !/broadcast
 /broadcast/*/31337/

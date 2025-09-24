@@ -8,8 +8,8 @@ optimizer = true
 optimizer_runs = 10_000
 
 [dependencies]
-"openzeppelin/openzeppelin-contracts" = "4.9.0"
-"foundry-rs/forge-std" = "1.9.6"
+"openzeppelin/openzeppelin-contracts" = "5.4.0"
+"foundry-rs/forge-std" = "1.10.0"
 
 [fmt]
 line_length = 100

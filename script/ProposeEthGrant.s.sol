@@ -8,8 +8,8 @@ import {ProposalBuilder} from "../src/utils/ProposalBuilder.sol";
 
 contract ProposeEthGrant is Script {
     function run() external {
-        address governorAddr = vm.envAddress("GOVERNOR");
-        address treasuryAddr = vm.envAddress("TREASURY");
+        address payable governorAddr = payable(vm.envAddress("GOVERNOR"));
+        address payable treasuryAddr = payable(vm.envAddress("TREASURY"));
         address payable recipient = payable(vm.envAddress("RECIPIENT"));
         uint256 amountWei = vm.envUint("AMOUNT_WEI");
         string memory description = vm.envString("DESCRIPTION"); // e.g., "Grant: 5 ETH to Project X"
@@ -17,10 +17,17 @@ contract ProposeEthGrant is Script {
         uint256 pk = vm.envUint("PRIVATE_KEY");
         vm.startBroadcast(pk);
 
-        (address[] memory targets, uint256[] memory values, bytes[] memory calldatas, string memory desc) =
-            ProposalBuilder.buildEthGrant(Treasury(treasuryAddr), recipient, amountWei, description);
+        (
+            address[] memory targets,
+            uint256[] memory values,
+            bytes[] memory calldatas,
+            string memory desc
+        ) = ProposalBuilder.buildEthGrant(
+            Treasury(payable(treasuryAddr)), recipient, amountWei, description
+        );
 
-        uint256 proposalId = GrantGovernor(governorAddr).propose(targets, values, calldatas, desc);
+        uint256 proposalId =
+            GrantGovernor(payable(governorAddr)).propose(targets, values, calldatas, desc);
         console2.log("Proposed ETH grant. proposalId:", proposalId);
 
         vm.stopBroadcast();

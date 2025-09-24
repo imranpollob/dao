@@ -20,7 +20,7 @@ contract GovernanceFlow is Test {
     address payable grantee = payable(address(0xBEEF));
 
     uint256 constant INIT_SUPPLY = 1_000_000e18;
-    uint256 constant PROPOSAL_THRESHOLD = 10_000e18;
+    uint256 constant PROPOSAL_THRESHOLD = 0; // small for test
     uint256 constant VOTING_DELAY = 1; // small for test
     uint256 constant VOTING_PERIOD = 5; // small for test
     uint256 constant QUORUM_PERCENT = 4; // 4%
@@ -46,10 +46,10 @@ contract GovernanceFlow is Test {
         timelock.renounceRole(timelock.DEFAULT_ADMIN_ROLE(), deployer);
 
         // delegate votes
-        token.transfer(voterA, 200_000e18);
         token.delegate(deployer);
         vm.prank(voterA);
         token.delegate(voterA);
+        token.transfer(voterA, 200_000e18);
 
         // fund treasury
         vm.deal(address(treasury), 10 ether);
@@ -79,15 +79,16 @@ contract GovernanceFlow is Test {
         vm.roll(block.number + VOTING_PERIOD + 1);
 
         // Should be Succeeded → Queue
-        // OZ v5 shortcut: queue by proposalId
-        governor.queue(proposalId);
+        // OZ v5: queue with full params
+        bytes32 descriptionHash = keccak256(bytes(desc));
+        governor.queue(targets, values, calldatas, descriptionHash);
 
         // Wait timelock
         vm.warp(block.timestamp + TIMELOCK_DELAY + 1);
 
         // Execute
         uint256 balBefore = grantee.balance;
-        governor.execute(proposalId);
+        governor.execute(targets, values, calldatas, descriptionHash);
         uint256 balAfter = grantee.balance;
 
         assertEq(balAfter - balBefore, 5 ether, "Grantee did not receive 5 ETH");
