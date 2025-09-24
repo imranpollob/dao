@@ -74,5 +74,7 @@ contract Deploy is Script {
         console2.log("Governor  :", address(governor));
         console2.log("Treasury  :", address(treasury));
         console2.log("Deployer  :", deployer);
+
+        console2.log("To update .env files, run: node script/update-env.js");
     }
 }

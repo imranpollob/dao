@@ -198,7 +198,7 @@ export default function ProposalList() {
   });
 
   // Get proposal count
-  const { data: proposalCount } = useReadContract({
+  const { data: proposalCount, isLoading: isCountLoading, isError: isCountError } = useReadContract({
     address: CONTRACT_ADDRESSES.anvil.grantGovernor,
     abi: CONTRACT_ABIS.GrantGovernor,
     functionName: 'proposalCount',
@@ -276,10 +276,14 @@ export default function ProposalList() {
 
   // Load proposals when count is available
   useEffect(() => {
-    if (proposalCount) {
-      loadProposals();
+    if (!isCountLoading) {
+      if (proposalCount && Number(proposalCount) > 0) {
+        loadProposals();
+      } else {
+        setLoading(false);
+      }
     }
-  }, [proposalCount, loadProposals]);
+  }, [proposalCount, isCountLoading, loadProposals]);
 
   const handleVote = async (proposalId: bigint, support: number) => {
     if (!address) {
@@ -299,6 +303,27 @@ export default function ProposalList() {
       alert('Failed to cast vote. Please try again.');
     }
   };
+
+  if (isCountError) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Active Proposals</CardTitle>
+          <CardDescription>
+            View and vote on active governance proposals.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8 text-re
+          d-500">
+            <XCircle className="h-12 w-12 mx-auto mb-4" />
+            <p>Failed to load proposals.</p>
+            <p className="text-sm">Please check your connection and try again.</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (loading) {
     return (
