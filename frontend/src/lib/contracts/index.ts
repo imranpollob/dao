@@ -20,10 +20,10 @@ export const CONTRACT_ADDRESSES = {
   },
   // Local development (Anvil)
   anvil: {
-    grantToken: (process.env.NEXT_PUBLIC_ANVIL_GRANT_TOKEN as Address) || '0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6',
-    grantGovernor: (process.env.NEXT_PUBLIC_ANVIL_GRANT_GOVERNOR as Address) || '0x610178dA211FEF7D417bC0e6FeD39F05609AD788',
-    treasury: (process.env.NEXT_PUBLIC_ANVIL_TREASURY as Address) || '0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e',
-    timelock: (process.env.NEXT_PUBLIC_ANVIL_TIMELOCK as Address) || '0x8A791620dd6260079BF849Dc5567aDC3F2FdC318',
+    grantToken: (process.env.NEXT_PUBLIC_ANVIL_GRANT_TOKEN as Address) || '0x959922be3caee4b8cd9a407cc3ac1c251c2007b1',
+    grantGovernor: (process.env.NEXT_PUBLIC_ANVIL_GRANT_GOVERNOR as Address) || '0x68b1d87f95878fe05b998f19b66f4baba5de1aed',
+    treasury: (process.env.NEXT_PUBLIC_ANVIL_TREASURY as Address) || '0x3aa5ebb10dc797cac828524e59a333d0a371443c',
+    timelock: (process.env.NEXT_PUBLIC_ANVIL_TIMELOCK as Address) || '0x9a9f2ccfde556a7e9ff0848998aa4a0cfd8863ae',
   },
 } as const;
 
