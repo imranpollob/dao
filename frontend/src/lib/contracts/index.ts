@@ -2,21 +2,28 @@
 
 import { Address } from 'viem';
 
-// Contract addresses (update these with deployed addresses)
+// Contract addresses from environment variables
 export const CONTRACT_ADDRESSES = {
   // Mainnet addresses
   mainnet: {
-    grantToken: '0x0000000000000000000000000000000000000000' as Address,
-    grantGovernor: '0x0000000000000000000000000000000000000000' as Address,
-    treasury: '0x0000000000000000000000000000000000000000' as Address,
-    timelock: '0x0000000000000000000000000000000000000000' as Address,
+    grantToken: (process.env.NEXT_PUBLIC_MAINNET_GRANT_TOKEN as Address) || '0x0000000000000000000000000000000000000000',
+    grantGovernor: (process.env.NEXT_PUBLIC_MAINNET_GRANT_GOVERNOR as Address) || '0x0000000000000000000000000000000000000000',
+    treasury: (process.env.NEXT_PUBLIC_MAINNET_TREASURY as Address) || '0x0000000000000000000000000000000000000000',
+    timelock: (process.env.NEXT_PUBLIC_MAINNET_TIMELOCK as Address) || '0x0000000000000000000000000000000000000000',
+  },
+  // Sepolia testnet addresses
+  sepolia: {
+    grantToken: (process.env.NEXT_PUBLIC_SEPOLIA_GRANT_TOKEN as Address) || '0x0000000000000000000000000000000000000000',
+    grantGovernor: (process.env.NEXT_PUBLIC_SEPOLIA_GRANT_GOVERNOR as Address) || '0x0000000000000000000000000000000000000000',
+    treasury: (process.env.NEXT_PUBLIC_SEPOLIA_TREASURY as Address) || '0x0000000000000000000000000000000000000000',
+    timelock: (process.env.NEXT_PUBLIC_SEPOLIA_TIMELOCK as Address) || '0x0000000000000000000000000000000000000000',
   },
   // Local development (Anvil)
   anvil: {
-    grantToken: '0x959922bE3CAee4b8Cd9a407cc3ac1C251C2007B1' as Address,
-    grantGovernor: '0x68B1D87F95878fE05B998F19b66F4baba5De1aed' as Address,
-    treasury: '0x3Aa5ebB10DC797CAC828524e59A333d0A371443c' as Address,
-    timelock: '0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE' as Address,
+    grantToken: (process.env.NEXT_PUBLIC_ANVIL_GRANT_TOKEN as Address) || '0x5FbDB2315678afecb367f032d93F642f64180aa3',
+    grantGovernor: (process.env.NEXT_PUBLIC_ANVIL_GRANT_GOVERNOR as Address) || '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0',
+    treasury: (process.env.NEXT_PUBLIC_ANVIL_TREASURY as Address) || '0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9',
+    timelock: (process.env.NEXT_PUBLIC_ANVIL_TIMELOCK as Address) || '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512',
   },
 } as const;
 
