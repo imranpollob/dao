@@ -1,7 +1,7 @@
 # 🏛️ Grant DAO – Community Grants Governance
 
 A **Decentralized Autonomous Organization (DAO)** where members holding governance tokens (`GDT`) can propose, vote, and fund community projects from a shared treasury.  
-This project is built with **Foundry** and **OpenZeppelin Contracts v4.9.0**, implementing modern governance best practices (Governor + Timelock + Treasury vault).
+This project is built with **Foundry** and **OpenZeppelin Contracts v5.4.0**, implementing modern governance best practices (Governor + Timelock + Treasury vault).
 
 ---
 
@@ -40,7 +40,10 @@ This project is built with **Foundry** and **OpenZeppelin Contracts v4.9.0**, im
   - Queue and Execute proposals
 
 - **Tests**  
-  - End-to-end governance flow: propose → vote → queue → execute → funds transferred
+  - **TreasurySmoke.t.sol**: Deployment validation, role configuration, treasury security (access control, reentrancy protection)
+  - **GovernanceFlow.t.sol**: End-to-end governance flows including ETH grants, ERC20 grants, and proposal rejection scenarios
+  - Comprehensive coverage: propose → vote → queue → execute → funds transferred
+  - Security testing: access controls, reentrancy protection, proper state transitions
 
 ---
 
@@ -63,8 +66,8 @@ This project is built with **Foundry** and **OpenZeppelin Contracts v4.9.0**, im
 │   └── QueueAndExecute.s.sol  # Queues + executes a passed proposal
 │
 ├── test
-│   ├── GovernanceFlow\.t.sol   # Full end-to-end governance flow test
-│   └── TreasurySmoke.t.sol    # Basic deployment and wiring sanity test
+│   ├── GovernanceFlow.t.sol   # End-to-end governance flows (ETH/ERC20 grants, rejection cases)
+│   └── TreasurySmoke.t.sol    # Deployment validation, treasury security, and access controls
 │
 ├── foundry.toml
 ├── remappings.txt
@@ -153,8 +156,6 @@ cast send $GOVERNOR "castVote(uint256,uint8)" <proposalId> 1 --private-key $PRIV
 ```bash
 forge script script/QueueAndExecute.s.sol:QueueAndExecute --rpc-url $RPC_URL --private-key $PRIVATE_KEY --broadcast --sig "run(uint256)" <proposalId>
 ```
-
-For detailed governance mechanics, see the [Governance Workflow](#-governance-workflow) section below.
 
 ---
 
