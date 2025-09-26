@@ -17,12 +17,6 @@ This demo showcases the complete DAO governance flow with optimized parameters f
 3. Environment updated: `node script/update-env.js`
 4. Frontend running: `cd frontend && npm run dev`
 
-### Quick Demo Script
-```bash
-# Run the complete demo
-./demo.sh
-```
-
 ### Manual Demo Steps
 
 1. **Create Proposal** (Frontend)
