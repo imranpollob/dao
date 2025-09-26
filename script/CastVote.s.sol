@@ -5,6 +5,20 @@ import "forge-std/Script.sol";
 import {GrantGovernor} from "../src/GrantGovernor.sol";
 
 contract CastVote is Script {
+    function run(uint256 proposalId, uint8 support) external {
+        address payable governorAddr = payable(vm.envAddress("GOVERNOR"));
+        string memory reason = ""; // Optional reason
+
+        uint256 pk = vm.envUint("PRIVATE_KEY");
+        vm.startBroadcast(pk);
+
+        GrantGovernor(payable(governorAddr)).castVoteWithReason(proposalId, support, reason);
+
+        console2.log("Voted on proposal", proposalId, "with support:", support);
+
+        vm.stopBroadcast();
+    }
+
     function run() external {
         address payable governorAddr = payable(vm.envAddress("GOVERNOR"));
         uint256 proposalId = vm.envUint("PROPOSAL_ID");

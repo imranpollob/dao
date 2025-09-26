@@ -204,17 +204,23 @@ export default function ProposalList() {
     functionName: 'proposalCount',
   });
 
-  const fetchProposalData = useCallback(async (proposalId: bigint): Promise<Proposal | null> => {
+  const fetchProposalData = useCallback(async (index: number): Promise<Proposal | null> => {
     if (!publicClient) return null;
 
     try {
-      // Get proposal details
-      const proposal = await publicClient.readContract({
+      // Get proposal details at index
+      const details = await publicClient.readContract({
         address: CONTRACT_ADDRESSES.anvil.grantGovernor,
         abi: CONTRACT_ABIS.GrantGovernor,
-        functionName: 'proposals',
-        args: [proposalId],
-      }) as any; // Contract returns complex tuple type
+        functionName: 'proposalDetailsAt',
+        args: [BigInt(index)],
+      }) as any; // Returns [proposalId, targets, values, calldatas, descriptionHash]
+
+      const proposalId = details[0] as bigint;
+      const targets = details[1] as readonly string[];
+      const values = details[2] as readonly bigint[];
+      const calldatas = details[3] as readonly string[];
+      const descriptionHash = details[4] as string;
 
       // Get proposal state
       const state = await publicClient.readContract({
@@ -234,13 +240,13 @@ export default function ProposalList() {
 
       return {
         id: proposalId,
-        proposer: proposal[0] as string,
-        targets: proposal[1] as readonly string[],
-        values: proposal[2] as readonly bigint[],
-        calldatas: proposal[3] as readonly string[],
-        description: proposal[4] as string,
-        startBlock: proposal[5] as bigint,
-        endBlock: proposal[6] as bigint,
+        proposer: '0x0000000000000000000000000000000000000000', // Not available in contract
+        targets,
+        values,
+        calldatas,
+        description: `Proposal #${proposalId}`, // Description not stored, using placeholder
+        startBlock: BigInt(0), // Not available
+        endBlock: BigInt(0), // Not available
         state,
         forVotes: votes[0] as bigint,
         againstVotes: votes[1] as bigint,
@@ -258,10 +264,10 @@ export default function ProposalList() {
     const proposalList: Proposal[] = [];
     const count = Number(proposalCount);
 
-    for (let i = 1; i <= count; i++) {
+    for (let i = 0; i < count; i++) {
       try {
         // Get proposal data
-        const proposalData = await fetchProposalData(BigInt(i));
+        const proposalData = await fetchProposalData(i);
         if (proposalData) {
           proposalList.push(proposalData);
         }

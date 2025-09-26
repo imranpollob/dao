@@ -39,6 +39,11 @@ This guide provides step-by-step instructions to test all features of the DAO pr
    cd ..
    ```
 
+4. **Generate ABI for frontend**:
+   ```bash
+   node script/generate-abi.js
+   ```
+
 ## Testing All Features
 
 ### 1. Start Local Blockchain
@@ -133,6 +138,13 @@ export DESCRIPTION="Test ERC20 grant proposal"
 forge script script/ProposeErc20Grant.s.sol --rpc-url http://localhost:8545 --broadcast --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
 ```
 
+#### List All Proposals
+To see all created proposal IDs:
+```bash
+npm run list-proposals
+```
+This will output the total number of proposals and their IDs.
+
 #### Vote on Proposals
 Get the latest proposal ID:
 ```bash
@@ -141,19 +153,18 @@ cast call $GOVERNOR "proposalCount()" --rpc-url http://localhost:8545 | cast --t
 
 Set voting parameters and cast votes (replace PROPOSAL_ID with actual ID):
 ```bash
-export PROPOSAL_ID=<actual-proposal-id-here>  # Replace with actual proposal ID from creation output
+export PROPOSAL_ID=<actual-proposal-id-here>
 export SUPPORT=1  # 1=For, 0=Against, 2=Abstain
 export REASON="I support this proposal"
 ```
 Check proposal state:
+
+States: 0=Pending, 1=Active, 2=Canceled, 3=Defeated, 4=Succeeded, 5=Queued, 6=Expired, 7=Executed
 ```bash
-# States: 0=Pending, 1=Active, 2=Canceled, 3=Defeated, 4=Succeeded, 5=Queued, 6=Expired, 7=Executed
 cast call $GOVERNOR "state(uint256)" $PROPOSAL_ID --rpc-url http://localhost:8545 | cast --to-dec
 ```
 
-**Note**: After creating a proposal, the script will output the proposal ID. Copy that ID and use it for voting, queuing, and execution. The proposal ID is a long hexadecimal number (hash).
-
-Example proposal ID from successful run: `39166286376217693897132300275322459012632747080396292396031139731117737761372`
+Cast votes:
 
 ```bash
 # Vote in favor (support = 1)
