@@ -164,6 +164,11 @@ States: 0=Pending, 1=Active, 2=Canceled, 3=Defeated, 4=Succeeded, 5=Queued, 6=Ex
 cast call $GOVERNOR "state(uint256)" $PROPOSAL_ID --rpc-url http://localhost:8545 | cast --to-dec
 ```
 
+Advance 1 block to pass the voting delay:
+```bash
+cast rpc anvil_mine 1 --rpc-url http://localhost:8545
+```
+
 Cast votes:
 
 ```bash
@@ -172,6 +177,20 @@ forge script script/CastVote.s.sol --rpc-url http://localhost:8545 --broadcast -
 
 # Vote against (support = 0)
 forge script script/CastVote.s.sol --rpc-url http://localhost:8545 --broadcast --private-key 0x59c6995e998f97a5a0044966f0945389dc9e86dae75c2a9ea38422a9dcf8c80a  --sig "run(uint256,uint8)" $PROPOSAL_ID 0
+```
+
+Check state again:
+```bash
+# Advance blocks to end voting period (5 blocks)
+cast rpc anvil_mine 6 --rpc-url http://localhost:8545
+
+# Check final state (should be 4 = Succeeded)
+cast call $GOVERNOR "state(uint256)" $PROPOSAL_ID --rpc-url http://localhost:8545 | cast --to-dec
+```
+
+# Check vote counts
+```bash
+cast call $GOVERNOR "proposalVotes(uint256)" $PROPOSAL_ID --rpc-url http://localhost:8545 
 ```
 
 #### Queue and Execute Proposals
@@ -183,8 +202,9 @@ cast rpc anvil_mine 6 --rpc-url http://localhost:8545
 # Queue proposal
 forge script script/QueueProposal.s.sol --rpc-url http://localhost:8545 --broadcast --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 --sig "run(uint256)" $PROPOSAL_ID
 
-# Wait for timelock (10 seconds)
-sleep 10
+# Advance time for timelock delay (10 seconds on Anvil)
+cast rpc evm_increaseTime 10 --rpc-url http://localhost:8545
+cast rpc evm_mine --rpc-url http://localhost:8545
 
 # Execute proposal
 forge script script/ExecuteProposal.s.sol --rpc-url http://localhost:8545 --broadcast --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 --sig "run(uint256)" $PROPOSAL_ID
@@ -233,9 +253,12 @@ forge test --match-path test/ComprehensiveScenarios.t.sol
 
 - **Contract deployment fails**: Ensure Anvil is running and RPC URL is correct
 - **Script execution fails**: Check private key and contract addresses in environment
+- **Environment variables not set**: Run `node script/update-env.js` and `source .env`
 - **Frontend not loading**: Verify environment variables and contract addresses
 - **Voting fails**: Ensure proposal is in active state and voting period hasn't ended
 - **Execution fails**: Check timelock delay and proposal state
+- **isOperationReady returns false after advancing time**: Ensure `$TIMELOCK` is set correctly and blockchain time has been advanced with `cast rpc evm_increaseTime 10` followed by `cast rpc evm_mine`
+- **Execution fails with OutOfFunds**: For ETH grants, fund the treasury first: `cast send $TREASURY --value 1ether --rpc-url http://localhost:8545 --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80`
 
 ## Contract Addresses (Example)
 
