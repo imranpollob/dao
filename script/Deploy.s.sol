@@ -12,13 +12,13 @@ import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
 contract Deploy is Script {
     // ---- PARAMETERS: tweak here or pass via env/CLI ----
     uint256 public constant INITIAL_SUPPLY = 10_000_000e18; // 10M GDT
-    uint256 public constant TIMELOCK_DELAY = 2 days;
+    uint256 public constant TIMELOCK_DELAY = 10 seconds; // Demo: 10 seconds instead of 2 days
 
     // Governance params (block-based; adjust for your chain)
-    uint256 public constant PROPOSAL_THRESHOLD = 100_000e18; // absolute tokens (e.g., 1% of 10M)
-    uint256 public constant VOTING_DELAY = 7200; // ~1 day on 12s blocks
-    uint256 public constant VOTING_PERIOD = 21600; // ~3 days
-    uint256 public constant QUORUM_PERCENT = 4; // 4% quorum
+    uint256 public constant PROPOSAL_THRESHOLD = 100e18; // Demo: 100 tokens instead of 100K
+    uint256 public constant VOTING_DELAY = 1; // Demo: 1 block (~2 seconds) instead of 7200
+    uint256 public constant VOTING_PERIOD = 5; // Demo: 5 blocks (~10 seconds) instead of 21600
+    uint256 public constant QUORUM_PERCENT = 1; // Demo: 1% quorum instead of 4%
 
     address[] proposers;
     address[] executors;
