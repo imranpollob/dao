@@ -126,6 +126,10 @@ export AMOUNT_WEI=1000000000000000000  # 1 ETH in wei
 export DESCRIPTION="Test ETH grant proposal"
 
 forge script script/ProposeEthGrant.s.sol --rpc-url http://localhost:8545 --broadcast --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+
+# check recipient balance
+cast balance $RECIPIENT --rpc-url http://localhost:8545 | cast --to-dec
+
 ```
 
 **ERC20 Grant Proposal**:
@@ -146,7 +150,7 @@ npm run list-proposals
 This will output the total number of proposals and their IDs.
 
 #### Vote on Proposals
-Get the latest proposal ID:
+Get total proposal count:
 ```bash
 cast call $GOVERNOR "proposalCount()" --rpc-url http://localhost:8545 | cast --to-dec
 ```
@@ -171,16 +175,24 @@ cast rpc anvil_mine 1 --rpc-url http://localhost:8545
 
 Cast votes:
 
+Vote in favor (support = 1)
 ```bash
-# Vote in favor (support = 1)
 forge script script/CastVote.s.sol --rpc-url http://localhost:8545 --broadcast --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 --sig "run(uint256,uint8)" $PROPOSAL_ID 1
+```
 
-# Vote against (support = 0)
+Vote against (support = 0)
+```bash
 forge script script/CastVote.s.sol --rpc-url http://localhost:8545 --broadcast --private-key 0x59c6995e998f97a5a0044966f0945389dc9e86dae75c2a9ea38422a9dcf8c80a  --sig "run(uint256,uint8)" $PROPOSAL_ID 0
 ```
 
 Check state again:
 ```bash
+# Current block
+cast block-number --rpc-url http://localhost:8545
+
+# Deadline
+cast call $GOVERNOR "proposalDeadline(uint256)" $PROPOSAL_ID --rpc-url http://localhost:8545 | cast --to-dec
+
 # Advance blocks to end voting period (5 blocks)
 cast rpc anvil_mine 6 --rpc-url http://localhost:8545
 
@@ -188,7 +200,7 @@ cast rpc anvil_mine 6 --rpc-url http://localhost:8545
 cast call $GOVERNOR "state(uint256)" $PROPOSAL_ID --rpc-url http://localhost:8545 | cast --to-dec
 ```
 
-# Check vote counts
+#### Check vote counts
 ```bash
 cast call $GOVERNOR "proposalVotes(uint256)" $PROPOSAL_ID --rpc-url http://localhost:8545 
 ```
@@ -196,21 +208,28 @@ cast call $GOVERNOR "proposalVotes(uint256)" $PROPOSAL_ID --rpc-url http://local
 #### Queue and Execute Proposals
 After voting period ends (advance blocks if needed):
 ```bash
-# Advance blocks to end voting period
-cast rpc anvil_mine 6 --rpc-url http://localhost:8545
-
 # Queue proposal
 forge script script/QueueProposal.s.sol --rpc-url http://localhost:8545 --broadcast --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 --sig "run(uint256)" $PROPOSAL_ID
 
+# Check proposal status
+cast call $GOVERNOR "state(uint256)" $PROPOSAL_ID --rpc-url http://localhost:8545 | cast --to-dec
+
 # Advance time for timelock delay (10 seconds on Anvil)
+# 10 seconds buffer time to execute a queued proposal
 cast rpc evm_increaseTime 10 --rpc-url http://localhost:8545
 cast rpc evm_mine --rpc-url http://localhost:8545
 
+# Fund treasury for ETH grants (skip for ERC20 grants)
+cast send $TREASURY --value 1ether --rpc-url http://localhost:8545 --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+
 # Execute proposal
 forge script script/ExecuteProposal.s.sol --rpc-url http://localhost:8545 --broadcast --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 --sig "run(uint256)" $PROPOSAL_ID
+
+# Check proposal status
+cast call $GOVERNOR "state(uint256)" $PROPOSAL_ID --rpc-url http://localhost:8545 | cast --to-dec
 ```
 
-#### Check Treasury Balance
+#### Check Balance
 Verify funds were transferred:
 ```bash
 # Check ETH balance
@@ -218,6 +237,9 @@ cast balance $TREASURY --rpc-url http://localhost:8545
 
 # Check ERC20 token balance (if applicable)
 cast call $GRANT_TOKEN "balanceOf(address)" $TREASURY --rpc-url http://localhost:8545 | cast --to-dec
+
+# Check recipient balance
+cast balance $RECIPIENT --rpc-url http://localhost:8545 | cast --to-dec
 ```
 
 ### 4. Frontend Testing

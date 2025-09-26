@@ -78,12 +78,20 @@ contract GrantGovernor is
         uint256 deadline = proposalDeadline(proposalId);
         uint256 currentTime = clock();
 
+        if (snapshot == 0) {
+            revert GovernorNonexistentProposal(proposalId);
+        }
+
         if (snapshot > currentTime) {
             return ProposalState.Pending;
         } else if (deadline >= currentTime) {
             return ProposalState.Active;
         } else if (_quorumReached(proposalId) && _voteSucceeded(proposalId)) {
-            return ProposalState.Succeeded;
+            if (proposalEta(proposalId) == 0) {
+                return ProposalState.Succeeded;
+            } else {
+                return ProposalState.Queued;
+            }
         } else {
             return ProposalState.Defeated;
         }
