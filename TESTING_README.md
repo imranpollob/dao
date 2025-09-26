@@ -1,10 +1,6 @@
 # DAO Project Testing Guide
 
-This guide provides step-by-step instructions to test all features of the DAO project from the terminal. The project # Vote in favor (support = 1)
-forge script script/CastVote.s.sol --rpc-url http://localhost:8545 --broadcast --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 --sig "run(uint256,uint8)" $PROPOSAL_ID 1
-
-# Vote against (support = 0)
-forge script script/CastVote.s.sol --rpc-url http://localhost:8545 --broadcast --private-key 0x59c6995e998f97a5a0044966f0945389dc9e86dae75c2a9ea38422a9dcf8c80a  --sig "run(uint256,uint8)" $PROPOSAL_ID 0des smart contracts for governance, treasury management, and a Next.js frontend for user interactions.
+This guide provides step-by-step instructions to test all features of the DAO project from the terminal. The project includes smart contracts for governance, treasury management, and a Next.js frontend for user interactions.
 
 ## Prerequisites
 
@@ -90,6 +86,15 @@ source .env
 source .env
 ```
 
+**Delegate voting tokens** (required for proposal creation):
+```bash
+# Delegate tokens to yourself to get voting power
+cast send $GRANT_TOKEN "delegate(address)" 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 --rpc-url http://localhost:8545 --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+
+# Advance blocks to ensure delegation takes effect
+cast rpc anvil_mine 1 --rpc-url http://localhost:8545
+```
+
 #### Check Contract Parameters
 Verify the demo parameters are set correctly:
 ```bash
@@ -147,14 +152,15 @@ cast call $GOVERNOR "state(uint256)" $PROPOSAL_ID --rpc-url http://localhost:854
 ```
 
 **Note**: After creating a proposal, the script will output the proposal ID. Copy that ID and use it for voting, queuing, and execution. The proposal ID is a long hexadecimal number (hash).
-Voting:
+
+Example proposal ID from successful run: `39166286376217693897132300275322459012632747080396292396031139731117737761372`
 
 ```bash
 # Vote in favor (support = 1)
-forge script script/CastVote.s.sol --rpc-url http://localhost:8545 --broadcast --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 --sig "run(uint256,uint8)" PROPOSAL_ID 1
+forge script script/CastVote.s.sol --rpc-url http://localhost:8545 --broadcast --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 --sig "run(uint256,uint8)" $PROPOSAL_ID 1
 
 # Vote against (support = 0)
-forge script script/CastVote.s.sol --rpc-url http://localhost:8545 --broadcast --private-key 0x59c6995e998f97a5a0044966f0945389dc9e86dae75c2a9ea38422a9dcf8c80a  --sig "run(uint256,uint8)" PROPOSAL_ID 0
+forge script script/CastVote.s.sol --rpc-url http://localhost:8545 --broadcast --private-key 0x59c6995e998f97a5a0044966f0945389dc9e86dae75c2a9ea38422a9dcf8c80a  --sig "run(uint256,uint8)" $PROPOSAL_ID 0
 ```
 
 #### Queue and Execute Proposals
