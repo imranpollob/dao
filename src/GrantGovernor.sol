@@ -74,27 +74,7 @@ contract GrantGovernor is
         override(Governor, GovernorTimelockControl)
         returns (ProposalState)
     {
-        uint256 snapshot = proposalSnapshot(proposalId);
-        uint256 deadline = proposalDeadline(proposalId);
-        uint256 currentTime = clock();
-
-        if (snapshot == 0) {
-            revert GovernorNonexistentProposal(proposalId);
-        }
-
-        if (snapshot > currentTime) {
-            return ProposalState.Pending;
-        } else if (deadline >= currentTime) {
-            return ProposalState.Active;
-        } else if (_quorumReached(proposalId) && _voteSucceeded(proposalId)) {
-            if (proposalEta(proposalId) == 0) {
-                return ProposalState.Succeeded;
-            } else {
-                return ProposalState.Queued;
-            }
-        } else {
-            return ProposalState.Defeated;
-        }
+        return super.state(proposalId);
     }
 
     function _cancel(
