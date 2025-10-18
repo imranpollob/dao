@@ -1,5 +1,16 @@
 # Understanding DAOs: A Beginner's Guide to Decentralized Governance
 
+## 📚 Documentation Overview
+
+Before diving into the technical details, here's how our documentation is organized:
+
+- **[Main README](README.md)** - Project overview and quick start
+- **[Blog Post](blog-post1.md)** - Detailed DAO concepts and implementation (this document)
+- **[Testing Guide](TESTING_README.md)** - Complete testing procedures and manual testing steps
+- **[Demo Guide](DEMO_README.md)** - Ultra-fast 2-minute demo setup and workflow
+
+---
+
 ## What is a DAO?
 
 Before diving into our project, let's understand what a DAO (Decentralized Autonomous Organization) actually is.
@@ -457,6 +468,8 @@ function testProposalRejection_InsufficientVotes()
 - **Edge Cases**: Test both success and failure paths
 - **Gas Optimization**: Monitor gas usage for efficiency
 
+For comprehensive testing procedures, see the **[Testing Guide](TESTING_README.md)**.
+
 ## Common Questions for Beginners
 
 ### Q: Why do I need to delegate my tokens?
@@ -489,148 +502,7 @@ function testProposalRejection_InsufficientVotes()
    ```
 
 3. **Run Local Demo**
-   ```bash
-   # Terminal 1: Start local blockchain
-   anvil -b 12 &
-   
-   # Terminal 2: Deploy contracts
-   forge script script/Deploy.s.sol:Deploy --rpc-url http://127.0.0.1:8545 --broadcast
-   
-   # Fund treasury and create proposals...
-   ```
-
-## Key Technical Concepts Explained
-
-### Snapshotting (ERC20Votes)
-
-**What it is:** Taking a "snapshot" of token balances at a specific point in time.
-
-**Why it matters:** Prevents vote buying attacks. Without snapshotting, someone could buy tokens right before a vote, vote, then sell immediately.
-
-**How it works:**
-```solidity
-// At proposal creation time
-uint256 snapshotBlock = block.number;
-
-// Later, when counting votes
-uint256 votingPower = token.getPastVotes(voter, snapshotBlock);
-```
-
-**Real-world analogy:** Like taking attendance at the start of class - you count who's present at the beginning, not who shows up late.
-
-### Gasless Approvals (ERC20Permit)
-
-**The Problem:** Traditional token approvals require two transactions:
-1. Approve spender (costs gas)
-2. Spender transfers tokens (costs gas)
-
-**The Solution:** ERC20Permit allows approval and transfer in one transaction using signatures.
-
-**How it works:**
-```solidity
-// Instead of:
-// 1. token.approve(spender, amount) [User pays gas]
-// 2. spender.transferFrom(user, recipient, amount) [Spender pays gas]
-
-// You can do:
-// 1. User signs permit message off-chain
-// 2. Spender calls permit + transferFrom in one tx [Spender pays gas]
-function permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s)
-```
-
-**Benefits:** Better UX, especially for mobile wallets and dApps.
-
-### Timelock Controller
-
-**What it is:** A smart contract that enforces mandatory delays between decision and execution.
-
-**Why it exists:** Gives community time to react to malicious or controversial proposals.
-
-**How it works:**
-```solidity
-// Proposal approved → Queued (waiting)
-// After delay → Ready for execution
-// Execute → Funds move
-
-timelock.scheduleBatch(targets, values, calldatas, 0, salt, delay);
-timelock.executeBatch(targets, values, calldatas, 0, salt);
-```
-
-**Security Benefits:**
-- **Reaction Time:** 2 days to coordinate response to bad proposals
-- **No Rush Decisions:** Prevents impulsive actions
-- **Audit Window:** Time for security researchers to review
-
-### Reentrancy Protection
-
-**The Attack:** Malicious contract calls back into your contract before the first execution finishes, potentially draining funds.
-
-**Classic Example (DAO Hack 2016):**
-```solidity
-function withdraw() public {
-    uint amount = balances[msg.sender];
-    balances[msg.sender] = 0;  // Update state AFTER transfer
-    (bool success,) = msg.sender.call{value: amount}("");  // Attacker calls back
-}
-```
-
-**Our Protection:**
-```solidity
-modifier nonReentrant() {
-    // Prevents re-entrant calls
-}
-
-function execute(address target, uint256 value, bytes calldata data)
-    external onlyOwner nonReentrant returns (bytes memory)
-```
-
-### Checkpointing (Voting Power History)
-
-**The Challenge:** Ethereum can't store infinite history. How do we know someone's voting power at block 1,000,000?
-
-**The Solution:** Checkpointing stores only significant changes, not every block.
-
-```solidity
-struct Checkpoint {
-    uint32 fromBlock;
-    uint224 votes;  // Voting power at this checkpoint
-}
-
-// When voting power changes (transfer, delegate, mint):
-// Create new checkpoint with current block and new vote count
-```
-
-**Efficiency:** Instead of storing balance every block, only store when it changes.
-
-### Quorum and Threshold
-
-**Proposal Threshold:** Minimum tokens needed to CREATE a proposal (prevents spam)
-**Quorum:** Minimum participation needed for proposal to pass (ensures community involvement)
-
-```solidity
-// Example: Threshold = 10,000 tokens, Quorum = 4% of supply
-uint256 totalSupply = 1_000_000e18;  // 1M tokens
-uint256 quorumNeeded = (totalSupply * 4) / 100;  // 40,000 tokens
-uint256 thresholdNeeded = 10_000e18;  // 10k tokens
-```
-
-### Foundry Scripts vs Manual Calls
-
-**Manual Approach:**
-```solidity
-// Deploy each contract individually
-GrantToken token = new GrantToken(initialSupply, deployer);
-TimelockController timelock = new TimelockController(delay, proposers, executors, admin);
-// Manually set permissions...
-```
-
-**Scripted Approach:**
-```bash
-forge script script/Deploy.s.sol:Deploy --broadcast
-# One command handles everything
-```
-
-**Benefits:** Reproducible, error-free, automated testing.
+   For a quick 2-minute demo, see the **[Demo Guide](DEMO_README.md)**.
 
 ## Future Enhancements
 
@@ -649,3 +521,8 @@ DAOs represent the future of organizational governance - transparent, community-
 The beauty of this system is its **simplicity combined with security**: anyone can understand the rules, but the technical implementation prevents exploitation.
 
 Whether you're a developer learning about DAOs or a community member participating in governance, understanding these building blocks will help you navigate the exciting world of decentralized organizations!
+
+For setup, testing, and usage instructions, see our other documentation files:
+- **[Main README](README.md)** - Quick start and deployment
+- **[Testing Guide](TESTING_README.md)** - Detailed testing procedures
+- **[Demo Guide](DEMO_README.md)** - 2-minute demo setup

@@ -1,8 +1,16 @@
-# DAO Project Testing Guide
+# 🧪 Grant DAO - Complete Testing Guide
 
-This guide provides step-by-step instructions to test all features of the DAO project from the terminal. The project includes smart contracts for governance, treasury management, and a Next.js frontend for user interactions.
+This guide provides step-by-step instructions to test all features of the Grant DAO project from the terminal. The project includes smart contracts for governance, treasury management, and a Next.js frontend for user interactions.
 
-## Prerequisites
+## 📚 Related Documentation
+
+- **[Main README](README.md)** - Project overview and quick start
+- **[Blog Post](blog-post1.md)** - Detailed DAO concepts and implementation
+- **[Demo Guide](DEMO_README.md)** - Ultra-fast 2-minute demo setup
+
+---
+
+## 🛠️ Prerequisites
 
 - **Foundry**: For smart contract development and testing
   ```bash
@@ -19,7 +27,9 @@ This guide provides step-by-step instructions to test all features of the DAO pr
 
 - **Git**: For version control
 
-## Project Setup
+---
+
+## 🚀 Project Setup
 
 1. **Clone and navigate to the project**:
    ```bash
@@ -44,7 +54,9 @@ This guide provides step-by-step instructions to test all features of the DAO pr
    node script/generate-abi.js
    ```
 
-## Testing All Features
+---
+
+## 🧪 Testing All Features
 
 ### 1. Start Local Blockchain
 
@@ -281,6 +293,8 @@ forge test --match-path test/ComprehensiveScenarios.t.sol
 - **Execution fails**: Check timelock delay and proposal state
 - **isOperationReady returns false after advancing time**: Ensure `$TIMELOCK` is set correctly and blockchain time has been advanced with `cast rpc evm_increaseTime 10` followed by `cast rpc evm_mine`
 - **Execution fails with OutOfFunds**: For ETH grants, fund the treasury first: `cast send $TREASURY --value 1ether --rpc-url http://localhost:8545 --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80`
+
+For additional resources and concepts, see the **[Blog Post](blog-post1.md)**.
 
 ## Contract Addresses (Example)
 
