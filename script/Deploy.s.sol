@@ -33,8 +33,12 @@ contract Deploy is Script {
         GrantToken token = new GrantToken(INITIAL_SUPPLY, deployer);
 
         // 2) Timelock (no proposers/executors at deploy; set roles after Governor is deployed)
-        TimelockController timelock =
-            new TimelockController(TIMELOCK_DELAY, proposers, executors, deployer);
+        TimelockController timelock = new TimelockController(
+            TIMELOCK_DELAY,
+            proposers,
+            executors,
+            deployer
+        );
 
         // 3) Governor wired to token + timelock
         GrantGovernor governor = new GrantGovernor(
@@ -58,6 +62,11 @@ contract Deploy is Script {
 
         timelock.grantRole(PROPOSER_ROLE, address(governor));
         timelock.grantRole(EXECUTOR_ROLE, address(0)); // anyone can execute after delay
+
+        // 6) Grant CANCELLER_ROLE to Guardian (emergency veto)
+        bytes32 CANCELLER_ROLE = timelock.CANCELLER_ROLE();
+        address guardian = vm.envOr("GUARDIAN_ADDRESS", deployer);
+        timelock.grantRole(CANCELLER_ROLE, guardian);
 
         // 6) Renounce Timelock admin from deployer to remove backdoor
         timelock.renounceRole(ADMIN_ROLE, deployer);
