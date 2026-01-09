@@ -5,20 +5,20 @@ import "forge-std/Script.sol";
 import {GrantToken} from "../src/GrantToken.sol";
 import {Treasury} from "../src/Treasury.sol";
 import {GrantGovernor} from "../src/GrantGovernor.sol";
+import {GrantVesting} from "../src/GrantVesting.sol";
 import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol";
-import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
 import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
 
 contract Deploy is Script {
-    // ---- PARAMETERS: tweak here or pass via env/CLI ----
+    // ---- PARAMETERS: Standard DAO Configuration ----
     uint256 public constant INITIAL_SUPPLY = 10_000_000e18; // 10M GDT
-    uint256 public constant TIMELOCK_DELAY = 10 seconds; // Demo: 10 seconds instead of 2 days
+    uint256 public constant TIMELOCK_DELAY = 2 days; // Standard 48h delay
 
-    // Governance params (block-based; adjust for your chain)
-    uint256 public constant PROPOSAL_THRESHOLD = 100e18; // Demo: 100 tokens instead of 100K
-    uint256 public constant VOTING_DELAY = 1; // Demo: 1 block (~2 seconds) instead of 7200
-    uint256 public constant VOTING_PERIOD = 5; // Demo: 5 blocks (~10 seconds) instead of 21600
-    uint256 public constant QUORUM_PERCENT = 1; // Demo: 1% quorum instead of 4%
+    // Governance params (Standard)
+    uint256 public constant PROPOSAL_THRESHOLD = 100_000e18; // 100k tokens to propose (1% of supply)
+    uint256 public constant VOTING_DELAY = 7200; // ~1 day (Assuming 12s blocks)
+    uint256 public constant VOTING_PERIOD = 50400; // ~1 week
+    uint256 public constant QUORUM_PERCENT = 4; // 4% Quorum
 
     address[] proposers;
     address[] executors;
@@ -83,6 +83,12 @@ contract Deploy is Script {
         console2.log("Governor  :", address(governor));
         console2.log("Treasury  :", address(treasury));
         console2.log("Deployer  :", deployer);
+
+        console2.log("-----------------------------------");
+        console2.log("Deployment Complete. Configuration:");
+        console2.log("Timelock Delay:", TIMELOCK_DELAY);
+        console2.log("Quorum %:", QUORUM_PERCENT);
+        console2.log("Proposal Threshold:", PROPOSAL_THRESHOLD);
 
         console2.log("To update .env files, run: node script/update-env.js");
     }
