@@ -12,9 +12,7 @@ contract DeployVesting is Script {
         // Params from env or defaults
         address beneficiary = vm.envAddress("VESTING_BENEFICIARY");
         uint64 start = uint64(vm.envOr("VESTING_START", block.timestamp));
-        uint64 duration = uint64(
-            vm.envOr("VESTING_DURATION", uint256(365 days))
-        );
+        uint64 duration = uint64(vm.envOr("VESTING_DURATION", uint256(365 days)));
 
         vm.startBroadcast(deployerPK);
 

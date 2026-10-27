@@ -36,9 +36,34 @@ Grant DAO enables token holders to propose, vote on, and execute grant distribut
 
 - **GrantToken**: ERC20 governance token with permit and voting extensions
 - **GrantGovernor**: OpenZeppelin Governor with Settings, Counting, Votes, Quorum, and Timelock
-- **Treasury**: Secure vault for DAO funds, controlled exclusively by the Timelock
-- **GrantVesting**: Vesting wallet implementation for scheduled token releases
-- **ProposalBuilder**: Utility library for constructing proposal transactions
+- **Treasury**: Typed payouts (`sendETH`, `sendERC20`, `fundVesting`) with caps, floor, allowlist, and time-bounded pause; owned by the Timelock
+- **GrantRegistry**: Grant lifecycle (Immediate, Milestone, Vesting) with evidence, reviewer approval, commitment accounting, and cancel/revoke
+- **GrantVestingRevocable**: Cliff plus linear vesting with beneficiary/admin split and timelock-only revoke
+- **ProposalBuilder**: Batch, vesting, and milestone payout builders plus `ProposalRisk` scanner
+
+## Attack table
+
+| Attack | Result | Proof |
+|---|---|---|
+| Pure flashloan vote | Fails (checkpoint) | `test/attacks/GovernanceAttacks.t.sol` |
+| Borrow-and-hold quorum | Passes vote, payout blocked by caps | Same suite |
+| Raw `execute` drain | Works unless allowlist enforced (residual risk) | Same suite |
+| Reentrant recipient | Reverts | `test/attacks/TreasuryAttacks.t.sol` |
+| Fee-on-transfer token | Rejected on deposit | `test/TreasuryPolicy.t.sol` |
+| Double payout / replay | Reverts | `test/attacks/TreasuryAttacks.t.sol` |
+
+## Demo
+
+```bash
+anvil &
+make demo
+```
+
+Then run the ops scripts (`Doctor`, `Roles`, `SimulateProposal`,
+`CancelProposal`). Full docs: `docs/GRANT_LIFECYCLE.md`,
+`docs/GOVERNANCE.md`, `docs/ROLES.md`, `docs/RUNBOOK.md`,
+`docs/THREAT_MODEL.md`, `docs/INVARIANTS.md`, `docs/AUDIT_REPORT.md`.
+Disclosure policy: `SECURITY.md`.
 
 ## Technology Stack
 

@@ -28,15 +28,15 @@ contract ComprehensiveScenarios is Test {
 
     // Test constants
     uint256 constant INIT_SUPPLY = 1_000_000e18;
-    
+
     // This is the minimum number of votes (i.e., tokens) an account must hold to be able to create a new proposal.
     // Set to 0 for testing all scenarios
-    uint256 constant PROPOSAL_THRESHOLD = 0; 
+    uint256 constant PROPOSAL_THRESHOLD = 0;
 
     // This defines the delay, in blocks, between when a proposal is created and when voting on it can begin. A value of 1 means voting starts one block after the proposal is submitted. This delay gives voters a chance to review the proposal before the voting period opens.
     uint256 constant VOTING_DELAY = 1;
-    
-    // This sets the duration of the voting period, in blocks. A value of 5 means that once voting starts, it will remain open for 5 blocks. 
+
+    // This sets the duration of the voting period, in blocks. A value of 5 means that once voting starts, it will remain open for 5 blocks.
     uint256 constant VOTING_PERIOD = 5;
 
     // This is the minimum percentage of the total token supply that must participate in a vote for the proposal to be considered valid. A 4% quorum means that at least 4% of all governance tokens must be used to vote on a proposal for it to pass or fail based on the vote counts. If the quorum is not met, the proposal is automatically defeated. This ensures that a small group of voters cannot pass proposals without a minimum level of community engagement.

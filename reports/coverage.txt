@@ -1,0 +1,148 @@
+Warning: optimizer settings and `viaIR` have been disabled for accurate coverage reports.
+If you encounter "stack too deep" errors, consider using `--ir-minimum` which enables `viaIR` with minimum optimization resolving most of the errors.
+See more: https://book.getfoundry.sh/guides/best-practices/stack-too-deep
+Compiling 109 files with Solc 0.8.24
+Solc 0.8.24 finished in 2.03s
+Compiler run successful with warnings:
+Warning (2072): Unused local variable.
+  --> script/QueueAndExecute.s.sol:10:9:
+   |
+10 |         address payable governorAddr = payable(vm.envAddress("GOVERNOR"));
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning (2072): Unused local variable.
+  --> script/QueueAndExecute.s.sol:11:9:
+   |
+11 |         uint256 proposalId = vm.envUint("PROPOSAL_ID");
+   |         ^^^^^^^^^^^^^^^^^^
+
+Warning (2072): Unused local variable.
+  --> script/QueueAndExecute.s.sol:12:9:
+   |
+12 |         uint256 timelockDelay = vm.envOr("TIMELOCK_DELAY", uint256(0)); // seconds; only used for local warp
+   |         ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (2072): Unused local variable.
+  --> script/QueueAndExecute.s.sol:13:9:
+   |
+13 |         bool isLocal = vm.envOr("LOCAL_CHAIN", true); // set false on live networks
+   |         ^^^^^^^^^^^^
+
+Warning (2072): Unused local variable.
+   --> test/ComprehensiveScenarios.t.sol:359:9:
+    |
+359 |         uint256 proposalId = governor.propose(targets, values, calldatas, desc);
+    |         ^^^^^^^^^^^^^^^^^^
+
+Warning (2072): Unused local variable.
+  --> test/SecurityAndVesting.t.sol:77:9:
+   |
+77 |         bytes32 CALL_SCHEDULED_SIG =
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning (2018): Function state mutability can be restricted to view
+  --> test/TreasurySmoke.t.sol:51:5:
+   |
+51 |     function test_snapshot_compile() public {
+   |     ^ (Relevant source part starts here and spans across multiple lines).
+
+Warning (2018): Function state mutability can be restricted to view
+  --> test/attacks/GovernanceAttacks.t.sol:43:5:
+   |
+43 |     function _proposeDrain(uint256 amount)
+   |     ^ (Relevant source part starts here and spans across multiple lines).
+
+Analysing contracts...
+Running tests...
+
+Ran 2 tests for test/SecurityAndVesting.t.sol:SecurityAndVestingTest
+[PASS] testGuardianCancellation() (gas: 757692)
+[PASS] testVestingWallet() (gas: 123721)
+Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 10.01ms (10.24ms CPU time)
+
+Ran 4 tests for test/attacks/GovernanceAttacks.t.sol:GovernanceAttacks
+[PASS] testBorrowAndHoldIsRealVectorButTypedCapContains() (gas: 975413)
+[PASS] testPureFlashloanVoteFails() (gas: 583807)
+[PASS] testRawExecuteIsResidualRiskWithoutAllowlist() (gas: 1077233)
+[PASS] testVoteBySigReplayReverts() (gas: 723102)
+Suite result: ok. 4 passed; 0 failed; 0 skipped; finished in 15.94ms (26.33ms CPU time)
+
+Ran 5 tests for test/TreasurySmoke.t.sol:TreasurySmoke
+[PASS] testTreasury_Execute_RevertsForNonOwner() (gas: 35996)
+[PASS] testTreasury_Execute_SucceedsForOwner() (gas: 88150)
+[PASS] testTreasury_ReceiveEther() (gas: 15755)
+[PASS] testTreasury_ReentrancyProtection() (gas: 444912)
+[PASS] test_snapshot_compile() (gas: 110680)
+Suite result: ok. 5 passed; 0 failed; 0 skipped; finished in 17.50ms (16.15ms CPU time)
+
+Ran 4 tests for test/Registry.t.sol:RegistryTest
+[PASS] testCancelStopsFuturePayouts() (gas: 297158)
+[PASS] testImmediateLifecycleAndAccounting() (gas: 388143)
+[PASS] testMilestoneEvidenceApprovePayout() (gas: 762010)
+[PASS] testNoSilentAmendmentPath() (gas: 256918)
+Suite result: ok. 4 passed; 0 failed; 0 skipped; finished in 19.46ms (4.86ms CPU time)
+
+Ran 3 tests for test/GovernanceFlow.t.sol:GovernanceFlow
+[PASS] testEndToEnd_Erc20Grant() (gas: 1823134)
+[PASS] testEndToEnd_EthGrant() (gas: 848457)
+[PASS] testProposalRejection_InsufficientVotes() (gas: 622511)
+Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 19.61ms (17.91ms CPU time)
+
+Ran 6 tests for test/TreasuryPolicy.t.sol:TreasuryPolicyTest
+[PASS] testBatchEnforcesPerProposalCap() (gas: 202156)
+[PASS] testFeeOnTransferRejected() (gas: 1173959)
+[PASS] testFloorBlocksDrain() (gas: 119812)
+[PASS] testPauseBlocksOutflowsNotDeposits() (gas: 327200)
+[PASS] testTypedEthPayoutEnforcesPerCallCap() (gas: 153638)
+[PASS] testVestingFundingAndRevokeInvariant() (gas: 296153)
+Suite result: ok. 6 passed; 0 failed; 0 skipped; finished in 19.74ms (13.44ms CPU time)
+
+Ran 6 tests for test/attacks/TreasuryAttacks.t.sol:TreasuryAttacks
+[PASS] testCapBypassViaBatchRevertsOnDailyCap() (gas: 155998)
+[PASS] testDoublePayoutAndMilestoneReplayRevert() (gas: 507656)
+[PASS] testPauseBypassRevertsOnExecuteAndTyped() (gas: 121739)
+[PASS] testReentrantPayeeCannotDrain() (gas: 510998)
+[PASS] testUnauthorizedPayoutReverts() (gas: 38915)
+[PASS] testVestingDoubleReleaseAndReleaseAfterRevoke() (gas: 295980)
+Suite result: ok. 6 passed; 0 failed; 0 skipped; finished in 19.97ms (11.42ms CPU time)
+
+Ran 18 tests for test/ComprehensiveScenarios.t.sol:ComprehensiveScenarios
+[PASS] testScenario_DoubleExecution() (gas: 882799)
+[PASS] testScenario_ExecuteBeforeTimelock() (gas: 782362)
+[PASS] testScenario_MultipleProposals() (gas: 1635727)
+[PASS] testScenario_ProposalBelowThreshold() (gas: 367533)
+[PASS] testScenario_ProposalCancel() (gas: 421106)
+[PASS] testScenario_ProposalRejected_InsufficientVotes() (gas: 696256)
+[PASS] testScenario_ProposalRejected_NoQuorum() (gas: 460922)
+[PASS] testScenario_QueueBeforeSucceeded() (gas: 408054)
+[PASS] testScenario_SuccessfulErc20Grant() (gas: 995233)
+[PASS] testScenario_SuccessfulEthGrant() (gas: 1058336)
+[PASS] testScenario_TreasuryExecute_FailedCall() (gas: 950881)
+[PASS] testScenario_TreasuryExecute_InsufficientFunds() (gas: 834692)
+[PASS] testScenario_TreasuryExecute_Unauthorized() (gas: 38446)
+[PASS] testScenario_TreasuryReceiveEther() (gas: 15727)
+[PASS] testScenario_VoteAbstain() (gas: 644486)
+[PASS] testScenario_VoteAfterDeadline() (gas: 418950)
+[PASS] testScenario_VoteTwice() (gas: 499820)
+[PASS] testScenario_ZeroAmountGrant() (gas: 793589)
+Suite result: ok. 18 passed; 0 failed; 0 skipped; finished in 20.37ms (86.33ms CPU time)
+
+Ran 1 test for test/invariants/TreasuryInvariants.t.sol:TreasuryInvariants
+[PASS]
+TreasuryInvariants invariants:
+[PASS] invariant_accountingHolds
+[PASS] invariant_floorHolds
+ TreasuryInvariants invariants (runs: 256, calls: 128000, reverts: 0)
+
+╭-----------------+--------------+-------+---------+----------╮
+| Contract        | Selector     | Calls | Reverts | Discards |
++=============================================================+
+| TreasuryHandler | pauseUnpause | 64307 | 0       | 0        |
+|-----------------+--------------+-------+---------+----------|
+| TreasuryHandler | payout       | 63693 | 0       | 0        |
+╰-----------------+--------------+-------+---------+----------╯
+
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 17.13s (17.13s CPU time)
+
+Ran 9 test suites in 17.13s (17.27s CPU time): 49 tests passed, 0 failed, 0 skipped (49 total tests)
+Wrote LCOV report.
