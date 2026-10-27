@@ -5,26 +5,29 @@ import "forge-std/Test.sol";
 import {GrantToken} from "../src/GrantToken.sol";
 import {GrantGovernor} from "../src/GrantGovernor.sol";
 import {Treasury} from "../src/Treasury.sol";
+import {GrantRegistry} from "../src/GrantRegistry.sol";
 import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol";
 import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
 import {IGovernor} from "@openzeppelin/contracts/governance/IGovernor.sol";
 import {ProposalBuilder} from "../src/utils/ProposalBuilder.sol";
+import {GrantTestBase} from "./helpers/GrantTestBase.sol";
 
-contract GovernanceFlow is Test {
+contract GovernanceFlow is GrantTestBase {
     GrantToken token;
     TimelockController timelock;
     GrantGovernor governor;
     Treasury treasury;
+    GrantRegistry registry;
 
     address deployer = address(this);
     address voterA = address(0xA11CE);
     address payable grantee = payable(address(0xBEEF));
 
     uint256 constant INIT_SUPPLY = 1_000_000e18;
-    uint256 constant PROPOSAL_THRESHOLD = 0; // small for test
-    uint256 constant VOTING_DELAY = 1; // small for test
-    uint256 constant VOTING_PERIOD = 5; // small for test
-    uint256 constant QUORUM_PERCENT = 4; // 4%
+    uint256 constant PROPOSAL_THRESHOLD = 0;
+    uint256 constant VOTING_DELAY = 1;
+    uint256 constant VOTING_PERIOD = 5;
+    uint256 constant QUORUM_PERCENT = 4;
     uint256 constant TIMELOCK_DELAY = 2 days;
 
     function setUp() public {
@@ -37,146 +40,113 @@ contract GovernanceFlow is Test {
             PROPOSAL_THRESHOLD,
             VOTING_DELAY,
             VOTING_PERIOD,
-            QUORUM_PERCENT
+            QUORUM_PERCENT,
+            makeAddr("guardian")
         );
-        treasury = new Treasury(address(timelock));
+        registry = new GrantRegistry(address(timelock));
+        treasury = new Treasury(address(timelock), registry);
+        vm.prank(address(timelock));
+        registry.setTreasury(address(treasury));
 
-        // Roles + renounce admin
         timelock.grantRole(timelock.PROPOSER_ROLE(), address(governor));
         timelock.grantRole(timelock.EXECUTOR_ROLE(), address(0));
         timelock.renounceRole(timelock.DEFAULT_ADMIN_ROLE(), deployer);
 
-        // delegate votes
         token.delegate(deployer);
         vm.prank(voterA);
         token.delegate(voterA);
         token.transfer(voterA, 200_000e18);
 
-        // fund treasury
         vm.deal(address(treasury), 10 ether);
+        vm.prank(address(timelock));
+        treasury.setCaps(10 ether, 100 ether, 1_000_000e18, 5_000_000e18);
+        vm.prank(address(timelock));
+        treasury.setTreasuryFloor(0);
     }
 
     function testEndToEnd_EthGrant() public {
-        // Build ETH grant proposal
+        uint256 grantId = createImmediate(registry, address(timelock), grantee, address(0), 5 ether);
         (
             address[] memory targets,
             uint256[] memory values,
             bytes[] memory calldatas,
             string memory desc
-        ) = ProposalBuilder.buildEthGrant(treasury, grantee, 5 ether, "Grant: 5 ETH to BEEF");
+        ) = ProposalBuilder.buildImmediatePayout(treasury, grantId, 5 ether, "Grant: 5 ETH");
 
-        // Propose (deployer has delegated votes ≥ threshold)
         uint256 proposalId = governor.propose(targets, values, calldatas, desc);
-
-        // At this point: state = Pending; move to Active (after delay)
         vm.roll(block.number + VOTING_DELAY + 1);
 
-        // Cast votes (For wins)
         vm.prank(voterA);
-        governor.castVote(proposalId, 1); // For
-        governor.castVote(proposalId, 1); // deployer For
-
-        // Advance beyond voting period
+        governor.castVote(proposalId, 1);
+        governor.castVote(proposalId, 1);
         vm.roll(block.number + VOTING_PERIOD + 1);
 
-        // Should be Succeeded → Queue
-        // OZ v5: queue with full params
         bytes32 descriptionHash = keccak256(bytes(desc));
         governor.queue(targets, values, calldatas, descriptionHash);
-
-        // Wait timelock
         vm.warp(block.timestamp + TIMELOCK_DELAY + 1);
 
-        // Execute
         uint256 balBefore = grantee.balance;
         governor.execute(targets, values, calldatas, descriptionHash);
-        uint256 balAfter = grantee.balance;
-
-        assertEq(balAfter - balBefore, 5 ether, "Grantee did not receive 5 ETH");
+        assertEq(grantee.balance - balBefore, 5 ether);
+        assertEq(
+            uint256(registry.grants(grantId).status), uint256(GrantRegistry.GrantStatus.Completed)
+        );
     }
 
     function testEndToEnd_Erc20Grant() public {
-        // Create a mock ERC20 token for testing
         MockERC20 erc20 = new MockERC20("Test Token", "TEST", 1_000_000e18);
-        erc20.transfer(address(treasury), 100_000e18); // Fund treasury with ERC20
+        erc20.transfer(address(treasury), 100_000e18);
+        vm.prank(address(timelock));
+        treasury.setTokenAllowed(address(erc20), true);
+        uint256 grantId =
+            createImmediate(registry, address(timelock), grantee, address(erc20), 10_000e18);
 
-        // Build ERC20 grant proposal
         (
             address[] memory targets,
             uint256[] memory values,
             bytes[] memory calldatas,
             string memory desc
-        ) = ProposalBuilder.buildErc20Grant(
-            treasury, address(erc20), grantee, 10_000e18, "Grant: 10k TEST to BEEF"
-        );
+        ) = ProposalBuilder.buildImmediatePayout(treasury, grantId, 10_000e18, "Grant: 10k TEST");
 
-        // Propose
         uint256 proposalId = governor.propose(targets, values, calldatas, desc);
-
-        // Move to voting phase
         vm.roll(block.number + VOTING_DELAY + 1);
-
-        // Cast votes
         vm.prank(voterA);
-        governor.castVote(proposalId, 1); // For
-        governor.castVote(proposalId, 1); // deployer For
-
-        // Advance beyond voting period
+        governor.castVote(proposalId, 1);
+        governor.castVote(proposalId, 1);
         vm.roll(block.number + VOTING_PERIOD + 1);
 
-        // Queue
         bytes32 descriptionHash = keccak256(bytes(desc));
         governor.queue(targets, values, calldatas, descriptionHash);
-
-        // Wait timelock
         vm.warp(block.timestamp + TIMELOCK_DELAY + 1);
 
-        // Execute
         uint256 balBefore = erc20.balanceOf(grantee);
         governor.execute(targets, values, calldatas, descriptionHash);
-        uint256 balAfter = erc20.balanceOf(grantee);
-
-        assertEq(balAfter - balBefore, 10_000e18, "Grantee did not receive 10k TEST tokens");
+        assertEq(erc20.balanceOf(grantee) - balBefore, 10_000e18);
     }
 
     function testProposalRejection_InsufficientVotes() public {
-        // Build ETH grant proposal
+        uint256 grantId = createImmediate(registry, address(timelock), grantee, address(0), 5 ether);
         (
             address[] memory targets,
             uint256[] memory values,
             bytes[] memory calldatas,
             string memory desc
-        ) = ProposalBuilder.buildEthGrant(treasury, grantee, 5 ether, "Grant: 5 ETH to BEEF");
+        ) = ProposalBuilder.buildImmediatePayout(treasury, grantId, 5 ether, "Grant: 5 ETH");
 
-        // Propose
         uint256 proposalId = governor.propose(targets, values, calldatas, desc);
-
-        // Move to voting phase
         vm.roll(block.number + VOTING_DELAY + 1);
-
-        // Cast against votes (should fail)
         vm.prank(voterA);
-        governor.castVote(proposalId, 0); // Against
-        governor.castVote(proposalId, 0); // deployer Against
-
-        // Advance beyond voting period
+        governor.castVote(proposalId, 0);
+        governor.castVote(proposalId, 0);
         vm.roll(block.number + VOTING_PERIOD + 1);
 
-        // Check proposal state is Defeated
-        assertEq(
-            uint256(governor.state(proposalId)),
-            uint256(IGovernor.ProposalState.Defeated),
-            "Proposal should be defeated"
-        );
-
-        // Should not be able to queue
-        bytes32 descriptionHash = keccak256(bytes(desc));
+        assertEq(uint256(governor.state(proposalId)), uint256(IGovernor.ProposalState.Defeated));
         vm.expectRevert();
-        governor.queue(targets, values, calldatas, descriptionHash);
+        governor.queue(targets, values, calldatas, keccak256(bytes(desc)));
     }
 }
 
-// Mock ERC20 for testing
+// Minimal ERC20 used by the treasury path.
 contract MockERC20 {
     string public name;
     string public symbol;

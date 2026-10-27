@@ -6,13 +6,14 @@ import {GrantGovernor} from "../src/GrantGovernor.sol";
 import {Treasury} from "../src/Treasury.sol";
 import {ProposalBuilder} from "../src/utils/ProposalBuilder.sol";
 
+/// @notice Propose a payout for an ERC20 Immediate grant. The token comes
+/// from the registry; the caller cannot substitute it.
 contract ProposeErc20Grant is Script {
     function run() external {
         address payable governorAddr = payable(vm.envAddress("GOVERNOR"));
         address payable treasuryAddr = payable(vm.envAddress("TREASURY"));
-        address erc20 = vm.envAddress("ERC20");
-        address to = vm.envAddress("TO");
-        uint256 amount = vm.envUint("AMOUNT"); // token decimals
+        uint256 grantId = vm.envUint("GRANT_ID");
+        uint256 amount = vm.envUint("AMOUNT");
         string memory description = vm.envString("DESCRIPTION");
 
         uint256 pk = vm.envUint("PRIVATE_KEY");
@@ -23,13 +24,13 @@ contract ProposeErc20Grant is Script {
             uint256[] memory values,
             bytes[] memory calldatas,
             string memory desc
-        ) = ProposalBuilder.buildErc20Grant(
-            Treasury(payable(treasuryAddr)), erc20, to, amount, description
+        ) = ProposalBuilder.buildImmediatePayout(
+            Treasury(payable(treasuryAddr)), grantId, amount, description
         );
 
         uint256 proposalId =
             GrantGovernor(payable(governorAddr)).propose(targets, values, calldatas, desc);
-        console2.log("Proposed ERC20 grant. proposalId:", proposalId);
+        console2.log("Proposed ERC20 grant payout. proposalId:", proposalId);
 
         vm.stopBroadcast();
     }

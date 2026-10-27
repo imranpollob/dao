@@ -5,18 +5,19 @@ import "forge-std/Test.sol";
 import {GrantToken} from "../src/GrantToken.sol";
 import {GrantGovernor} from "../src/GrantGovernor.sol";
 import {Treasury} from "../src/Treasury.sol";
+import {GrantRegistry} from "../src/GrantRegistry.sol";
 import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol";
 import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
 import {IGovernor} from "@openzeppelin/contracts/governance/IGovernor.sol";
-import {GrantVesting} from "../src/GrantVesting.sol";
 import {ProposalBuilder} from "../src/utils/ProposalBuilder.sol";
+import {GrantTestBase} from "./helpers/GrantTestBase.sol";
 
-contract SecurityAndVestingTest is Test {
+contract SecurityAndVestingTest is GrantTestBase {
     GrantToken token;
     TimelockController timelock;
     GrantGovernor governor;
     Treasury treasury;
-    GrantVesting vesting;
+    GrantRegistry registry;
 
     address deployer = address(this);
     address guardian = address(0xBAD);
@@ -29,91 +30,116 @@ contract SecurityAndVestingTest is Test {
         token = new GrantToken(INIT_SUPPLY, deployer);
         timelock =
             new TimelockController(TIMELOCK_DELAY, new address[](0), new address[](0), deployer);
-        governor = new GrantGovernor(
-            IVotes(address(token)),
-            timelock,
-            0, // threshold
-            1, // delay
-            5, // period
-            0 // quorum
-        );
-        treasury = new Treasury(address(timelock));
+        governor = new GrantGovernor(IVotes(address(token)), timelock, 0, 1, 5, 0, guardian);
+        registry = new GrantRegistry(address(timelock));
+        treasury = new Treasury(address(timelock), registry);
+        vm.prank(address(timelock));
+        registry.setTreasury(address(treasury));
 
-        // Roles
         timelock.grantRole(timelock.PROPOSER_ROLE(), address(governor));
         timelock.grantRole(timelock.EXECUTOR_ROLE(), address(0));
-        timelock.grantRole(timelock.CANCELLER_ROLE(), guardian); // Guardian Setup
+        timelock.grantRole(timelock.CANCELLER_ROLE(), address(governor));
         timelock.renounceRole(timelock.DEFAULT_ADMIN_ROLE(), deployer);
 
         token.delegate(deployer);
+        vm.deal(address(treasury), 10 ether);
+        vm.prank(address(timelock));
+        treasury.setCaps(10 ether, 100 ether, 1_000_000e18, 5_000_000e18);
+        vm.prank(address(timelock));
+        treasury.setTreasuryFloor(0);
     }
 
     function testGuardianCancellation() public {
-        // 1. Propose
+        uint256 grantId =
+            createImmediate(registry, address(timelock), payable(beneficiary), address(0), 1 ether);
         (
             address[] memory targets,
             uint256[] memory values,
             bytes[] memory calldatas,
             string memory desc
-        ) = ProposalBuilder.buildEthGrant(treasury, payable(beneficiary), 1 ether, "Grant");
+        ) = ProposalBuilder.buildImmediatePayout(treasury, grantId, 1 ether, "Grant");
 
         uint256 pid = governor.propose(targets, values, calldatas, desc);
-
-        // 2. Pass vote
         vm.roll(block.number + 2);
         governor.castVote(pid, 1);
         vm.roll(block.number + 6);
-
-        // 3. Queue and capture ID
         bytes32 descriptionHash = keccak256(bytes(desc));
-
-        vm.recordLogs();
         governor.queue(targets, values, calldatas, descriptionHash);
-        Vm.Log[] memory entries = vm.getRecordedLogs();
 
-        bytes32 opId;
-        // Find the CallScheduled or similar event from Timelock
-        // Event signature: CallScheduled(bytes32 indexed id, uint256 indexed index, address target, uint256 value, bytes data, bytes32 predecessor, uint256 delay)
-        bytes32 CALL_SCHEDULED_SIG =
-            keccak256("CallScheduled(bytes32,uint256,address,uint256,bytes,bytes32,uint256)");
-
-        for (uint256 i = 0; i < entries.length; i++) {
-            if (entries[i].emitter == address(timelock)) {
-                // We accept the first ID we see from Timelock
-                if (entries[i].topics.length > 1) {
-                    opId = entries[i].topics[1]; // indexed id is topic 1 (topic 0 is signature)
-                }
-            }
-        }
-
-        console2.log("Captured OpId:");
-        console2.logBytes32(opId);
-
-        // 4. Guardian Cancels using Timelock directly
         vm.prank(guardian);
-        timelock.cancel(opId);
-
-        // 5. Verify state
-        vm.warp(block.timestamp + TIMELOCK_DELAY + 1);
-
-        vm.expectRevert(); // Should revert because proposal was cancelled in timelock
-        governor.execute(targets, values, calldatas, descriptionHash);
+        governor.cancel(targets, values, calldatas, descriptionHash);
+        assertEq(uint256(governor.state(pid)), uint256(IGovernor.ProposalState.Canceled));
     }
 
-    function testVestingWallet() public {
-        uint64 start = uint64(block.timestamp);
-        uint64 duration = 1000;
-        vesting = new GrantVesting(beneficiary, start, duration);
+    function testGuardianCannotBeZeroAtConstruction() public {
+        vm.expectRevert(GrantGovernor.ZeroAddress.selector);
+        new GrantGovernor(IVotes(address(token)), timelock, 0, 1, 5, 0, address(0));
+    }
 
-        // Fund vesting
-        vm.deal(address(vesting), 1000 ether);
+    function testGuardianCanCancelPending() public {
+        uint256 grantId =
+            createImmediate(registry, address(timelock), payable(beneficiary), address(0), 1 ether);
+        (
+            address[] memory targets,
+            uint256[] memory values,
+            bytes[] memory calldatas,
+            string memory desc
+        ) = ProposalBuilder.buildImmediatePayout(treasury, grantId, 1 ether, "Grant");
+        uint256 pid = governor.propose(targets, values, calldatas, desc);
 
-        // Check release
-        vm.warp(start + 500); // 50%
-        uint256 released = vesting.releasable(); // ETH
-        assertEq(released, 500 ether);
+        vm.prank(guardian);
+        governor.cancel(targets, values, calldatas, keccak256(bytes(desc)));
+        assertEq(uint256(governor.state(pid)), uint256(IGovernor.ProposalState.Canceled));
+    }
 
-        vesting.release(); // Release ETH
-        assertEq(beneficiary.balance, 500 ether);
+    function testGuardianCanCancelActive() public {
+        uint256 grantId =
+            createImmediate(registry, address(timelock), payable(beneficiary), address(0), 1 ether);
+        (
+            address[] memory targets,
+            uint256[] memory values,
+            bytes[] memory calldatas,
+            string memory desc
+        ) = ProposalBuilder.buildImmediatePayout(treasury, grantId, 1 ether, "Grant");
+        uint256 pid = governor.propose(targets, values, calldatas, desc);
+        vm.roll(block.number + 2);
+        vm.prank(guardian);
+        governor.cancel(targets, values, calldatas, keccak256(bytes(desc)));
+        assertEq(uint256(governor.state(pid)), uint256(IGovernor.ProposalState.Canceled));
+    }
+
+    function testGuardianCanCancelSucceeded() public {
+        uint256 grantId =
+            createImmediate(registry, address(timelock), payable(beneficiary), address(0), 1 ether);
+        (
+            address[] memory targets,
+            uint256[] memory values,
+            bytes[] memory calldatas,
+            string memory desc
+        ) = ProposalBuilder.buildImmediatePayout(treasury, grantId, 1 ether, "Grant");
+        uint256 pid = governor.propose(targets, values, calldatas, desc);
+        vm.roll(block.number + 2);
+        governor.castVote(pid, 1);
+        vm.roll(block.number + 6);
+        assertEq(uint256(governor.state(pid)), uint256(IGovernor.ProposalState.Succeeded));
+
+        vm.prank(guardian);
+        governor.cancel(targets, values, calldatas, keccak256(bytes(desc)));
+        assertEq(uint256(governor.state(pid)), uint256(IGovernor.ProposalState.Canceled));
+    }
+
+    function testNonGuardianCannotCancelActive() public {
+        uint256 grantId =
+            createImmediate(registry, address(timelock), payable(beneficiary), address(0), 1 ether);
+        (
+            address[] memory targets,
+            uint256[] memory values,
+            bytes[] memory calldatas,
+            string memory desc
+        ) = ProposalBuilder.buildImmediatePayout(treasury, grantId, 1 ether, "Grant");
+        governor.propose(targets, values, calldatas, desc);
+        vm.roll(block.number + 2);
+        vm.expectRevert();
+        governor.cancel(targets, values, calldatas, keccak256(bytes(desc)));
     }
 }

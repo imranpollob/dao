@@ -34,13 +34,15 @@ contract GrantGovernor is
     /// @param votingDelayBlocks       delay after proposal creation before voting starts
     /// @param votingPeriodBlocks      duration voting stays open
     /// @param quorumPercent           e.g., 4 = 4%
+    /// @param guardian_               emergency veto address; required
     constructor(
         IVotes token,
         TimelockController timelock,
         uint256 proposalThresholdTokens,
         uint256 votingDelayBlocks,
         uint256 votingPeriodBlocks,
-        uint256 quorumPercent
+        uint256 quorumPercent,
+        address guardian_
     )
         Governor("GrantGovernor")
         GovernorSettings(
@@ -51,7 +53,29 @@ contract GrantGovernor is
         GovernorVotes(token)
         GovernorVotesQuorumFraction(quorumPercent)
         GovernorTimelockControl(timelock)
-    {}
+    {
+        if (guardian_ == address(0)) {
+            revert ZeroAddress();
+        }
+        _guardian = guardian_;
+    }
+
+    address private _guardian;
+
+    error ZeroAddress();
+    event GuardianUpdated(address indexed oldGuardian, address indexed newGuardian);
+
+    function guardian() external view returns (address) {
+        return _guardian;
+    }
+
+    /// @notice Rotate the guardian through governance.
+    function setGuardian(address next) external onlyGovernance {
+        if (next == address(0)) revert ZeroAddress();
+        address old = _guardian;
+        _guardian = next;
+        emit GuardianUpdated(old, next);
+    }
 
     // -------- Required overrides because of multiple inheritance --------
     function votingDelay() public view override(Governor, GovernorSettings) returns (uint256) {
@@ -115,6 +139,22 @@ contract GrantGovernor is
         returns (bool)
     {
         return super.proposalNeedsQueuing(proposalId);
+    }
+
+    /// @dev Guardian can veto Pending, Active, Succeeded, or Queued proposals.
+    /// Queued vetoes require this Governor to hold the Timelock CANCELLER_ROLE.
+    function _validateCancel(uint256 proposalId, address caller)
+        internal
+        view
+        override
+        returns (bool)
+    {
+        if (_guardian != address(0) && caller == _guardian) {
+            ProposalState s = state(proposalId);
+            return s == ProposalState.Pending || s == ProposalState.Active
+                || s == ProposalState.Succeeded || s == ProposalState.Queued;
+        }
+        return super._validateCancel(proposalId, caller);
     }
 
     function _queueOperations(

@@ -4,19 +4,12 @@ pragma solidity ^0.8.24;
 import {Treasury} from "../Treasury.sol";
 import {GrantRegistry} from "../GrantRegistry.sol";
 
-interface IVestingTarget {
-    function fund() external payable;
-}
-
+/// @title Governance proposal builders for the grant lifecycle
+/// @notice Every value-moving target is Treasury, which validates and records
+/// against GrantRegistry. Grant creation is a separate Registry proposal.
 library ProposalBuilder {
-    /// @notice Build a proposal that sends ETH from Treasury to `recipient`
-    function buildEthGrant(
-        Treasury treasury,
-        address payable recipient,
-        uint256 amountWei,
-        string memory description
-    )
-        internal
+    function _single(address target, bytes memory data, string memory description)
+        private
         pure
         returns (
             address[] memory targets,
@@ -28,22 +21,46 @@ library ProposalBuilder {
         targets = new address[](1);
         values = new uint256[](1);
         calldatas = new bytes[](1);
-
-        // call Treasury.execute(recipient, amountWei, "")
-        targets[0] = address(treasury);
-        values[0] = 0;
-        calldatas[0] =
-            abi.encodeWithSelector(Treasury.execute.selector, recipient, amountWei, bytes(""));
+        targets[0] = target;
+        calldatas[0] = data;
         desc = description;
     }
 
-    /// @notice Build a proposal that transfers ERC20 tokens from Treasury to `to`
-    /// @param erc20 token address that Treasury already holds
-    /// @param amount amount in token's decimals
-    function buildErc20Grant(
+    /// @notice Create a grant. The Timelock owns the Registry and executes this.
+    function buildCreateGrant(
+        GrantRegistry registry,
+        GrantRegistry.CreateGrantParams memory params,
+        string memory metadataURI,
+        uint256[] memory milestoneAmounts,
+        uint64[] memory milestoneDueDates,
+        string memory description
+    )
+        internal
+        pure
+        returns (
+            address[] memory targets,
+            uint256[] memory values,
+            bytes[] memory calldatas,
+            string memory desc
+        )
+    {
+        return _single(
+            address(registry),
+            abi.encodeWithSelector(
+                GrantRegistry.createGrant.selector,
+                params,
+                metadataURI,
+                milestoneAmounts,
+                milestoneDueDates
+            ),
+            description
+        );
+    }
+
+    /// @notice Pay an Immediate grant.
+    function buildImmediatePayout(
         Treasury treasury,
-        address erc20,
-        address to,
+        uint256 grantId,
         uint256 amount,
         string memory description
     )
@@ -56,66 +73,18 @@ library ProposalBuilder {
             string memory desc
         )
     {
-        targets = new address[](1);
-        values = new uint256[](1);
-        calldatas = new bytes[](1);
-
-        // IERC20(erc20).transfer(to, amount) via Treasury.execute
-        bytes memory data =
-            abi.encodeWithSelector(bytes4(keccak256("transfer(address,uint256)")), to, amount);
-
-        targets[0] = address(treasury);
-        values[0] = 0;
-        calldatas[0] = abi.encodeWithSelector(Treasury.execute.selector, erc20, 0, data);
-        desc = description;
+        return _single(
+            address(treasury),
+            abi.encodeWithSelector(Treasury.payGrant.selector, grantId, amount),
+            description
+        );
     }
 
-    /// @notice Build a batch ETH payout in ONE treasury call (atomic total-cap check).
-    function buildBatchEthGrants(
-        Treasury treasury,
-        address payable[] memory recipients,
-        uint256[] memory amounts,
-        uint256[] memory grantIds,
-        uint256[] memory milestoneIds,
-        uint256 perProposalCap,
-        string memory description
-    )
-        internal
-        pure
-        returns (
-            address[] memory targets,
-            uint256[] memory values,
-            bytes[] memory calldatas,
-            string memory desc
-        )
-    {
-        require(
-            recipients.length == amounts.length && recipients.length == grantIds.length
-                && recipients.length == milestoneIds.length,
-            "length mismatch"
-        );
-        targets = new address[](1);
-        values = new uint256[](1);
-        calldatas = new bytes[](1);
-        targets[0] = address(treasury);
-        values[0] = 0;
-        calldatas[0] = abi.encodeWithSelector(
-            Treasury.batchSendETH.selector,
-            recipients,
-            amounts,
-            grantIds,
-            milestoneIds,
-            perProposalCap
-        );
-        desc = description;
-    }
-
-    /// @notice Build a vesting-funding proposal: Treasury funds the vesting wallet.
-    function buildVestingGrant(
-        Treasury treasury,
-        address payable vesting,
-        uint256 amountWei,
+    /// @notice Approve submitted milestone evidence. Timelock-owned registry call.
+    function buildApproveMilestone(
+        GrantRegistry registry,
         uint256 grantId,
+        uint256 milestoneId,
         string memory description
     )
         internal
@@ -127,24 +96,44 @@ library ProposalBuilder {
             string memory desc
         )
     {
-        targets = new address[](1);
-        values = new uint256[](1);
-        calldatas = new bytes[](1);
-        targets[0] = address(treasury);
-        values[0] = 0;
-        calldatas[0] =
-            abi.encodeWithSelector(Treasury.fundVesting.selector, vesting, amountWei, grantId);
-        desc = description;
+        return _single(
+            address(registry),
+            abi.encodeWithSelector(GrantRegistry.approveMilestone.selector, grantId, milestoneId),
+            description
+        );
     }
 
-    /// @notice Build a milestone payout: Treasury pays AND registry records, atomically.
+    /// @notice Reject submitted milestone evidence.
+    function buildRejectMilestone(
+        GrantRegistry registry,
+        uint256 grantId,
+        uint256 milestoneId,
+        string memory reason,
+        string memory description
+    )
+        internal
+        pure
+        returns (
+            address[] memory targets,
+            uint256[] memory values,
+            bytes[] memory calldatas,
+            string memory desc
+        )
+    {
+        return _single(
+            address(registry),
+            abi.encodeWithSelector(
+                GrantRegistry.rejectMilestone.selector, grantId, milestoneId, reason
+            ),
+            description
+        );
+    }
+
+    /// @notice Pay one approved milestone. Amount is taken from the registry.
     function buildMilestonePayout(
         Treasury treasury,
-        GrantRegistry registry,
-        address payable recipient,
-        uint256 amountWei,
         uint256 grantId,
-        uint256 milestoneIdx,
+        uint256 milestoneId,
         string memory description
     )
         internal
@@ -156,19 +145,126 @@ library ProposalBuilder {
             string memory desc
         )
     {
-        targets = new address[](2);
-        values = new uint256[](2);
-        calldatas = new bytes[](2);
-        targets[0] = address(treasury);
-        values[0] = 0;
-        calldatas[0] = abi.encodeWithSelector(
-            Treasury.sendETH.selector, recipient, amountWei, grantId, milestoneIdx
+        return _single(
+            address(treasury),
+            abi.encodeWithSelector(Treasury.payMilestone.selector, grantId, milestoneId),
+            description
         );
-        targets[1] = address(registry);
-        values[1] = 0;
-        calldatas[1] = abi.encodeWithSelector(
-            GrantRegistry.recordPayout.selector, grantId, milestoneIdx, amountWei
+    }
+
+    /// @notice Pay multiple approved ETH milestones atomically.
+    function buildMilestoneBatch(
+        Treasury treasury,
+        uint256[] memory grantIds,
+        uint256[] memory milestoneIds,
+        string memory description
+    )
+        internal
+        pure
+        returns (
+            address[] memory targets,
+            uint256[] memory values,
+            bytes[] memory calldatas,
+            string memory desc
+        )
+    {
+        require(grantIds.length == milestoneIds.length, "length mismatch");
+        return _single(
+            address(treasury),
+            abi.encodeWithSelector(Treasury.payMilestoneBatch.selector, grantIds, milestoneIds),
+            description
         );
-        desc = description;
+    }
+
+    /// @notice Fund a Vesting grant from Treasury.
+    function buildVestingFunding(
+        Treasury treasury,
+        uint256 grantId,
+        uint256 amount,
+        string memory description
+    )
+        internal
+        pure
+        returns (
+            address[] memory targets,
+            uint256[] memory values,
+            bytes[] memory calldatas,
+            string memory desc
+        )
+    {
+        return _single(
+            address(treasury),
+            abi.encodeWithSelector(Treasury.fundVesting.selector, grantId, amount),
+            description
+        );
+    }
+
+    /// @notice Fund a Vesting grant with an ERC20 from Treasury.
+    function buildVestingFundingERC20(
+        Treasury treasury,
+        uint256 grantId,
+        uint256 amount,
+        string memory description
+    )
+        internal
+        pure
+        returns (
+            address[] memory targets,
+            uint256[] memory values,
+            bytes[] memory calldatas,
+            string memory desc
+        )
+    {
+        return _single(
+            address(treasury),
+            abi.encodeWithSelector(Treasury.fundVestingERC20.selector, grantId, amount),
+            description
+        );
+    }
+
+    /// @notice Revoke a Vesting grant and return unvested funds to Treasury.
+    function buildVestingRevoke(
+        Treasury treasury,
+        uint256 grantId,
+        string memory reason,
+        string memory description
+    )
+        internal
+        pure
+        returns (
+            address[] memory targets,
+            uint256[] memory values,
+            bytes[] memory calldatas,
+            string memory desc
+        )
+    {
+        return _single(
+            address(treasury),
+            abi.encodeWithSelector(Treasury.revokeVesting.selector, grantId, reason),
+            description
+        );
+    }
+
+    /// @notice Cancel an unfunded Immediate/Milestone grant.
+    function buildCancelGrant(
+        Treasury treasury,
+        uint256 grantId,
+        string memory reason,
+        string memory description
+    )
+        internal
+        pure
+        returns (
+            address[] memory targets,
+            uint256[] memory values,
+            bytes[] memory calldatas,
+            string memory desc
+        )
+    {
+        return _single(
+            address(treasury),
+            abi.encodeWithSelector(Treasury.cancelGrant.selector, grantId, reason),
+            description
+        );
     }
 }

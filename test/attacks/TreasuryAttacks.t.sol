@@ -5,26 +5,29 @@ import "forge-std/Test.sol";
 import {Treasury} from "../../src/Treasury.sol";
 import {GrantRegistry} from "../../src/GrantRegistry.sol";
 import {GrantVestingRevocable} from "../../src/GrantVestingRevocable.sol";
+import {GrantToken} from "../../src/GrantToken.sol";
 import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol";
+import {GrantTestBase} from "../helpers/GrantTestBase.sol";
 
 contract ReentrantPayee {
     Treasury public treasury;
+    uint256 public grantId;
     uint256 public count;
 
-    constructor(Treasury _t) {
+    constructor(Treasury _t, uint256 _grantId) {
         treasury = _t;
+        grantId = _grantId;
     }
 
     receive() external payable {
         if (count == 0) {
             count = 1;
-            // Re-enter the payout path: must revert (nonReentrant + pause/CEI order).
-            treasury.sendETH(payable(address(this)), 1 ether, 1, 0);
+            treasury.payGrant(grantId, 1 ether);
         }
     }
 }
 
-contract TreasuryAttacks is Test {
+contract TreasuryAttacks is GrantTestBase {
     Treasury treasury;
     GrantRegistry registry;
     TimelockController timelock;
@@ -33,8 +36,10 @@ contract TreasuryAttacks is Test {
 
     function setUp() public {
         timelock = new TimelockController(1 days, new address[](0), new address[](0), address(this));
-        treasury = new Treasury(address(timelock));
         registry = new GrantRegistry(address(timelock));
+        treasury = new Treasury(address(timelock), registry);
+        vm.prank(address(timelock));
+        registry.setTreasury(address(treasury));
         vm.deal(address(treasury), 100 ether);
         vm.prank(address(timelock));
         treasury.setCaps(50 ether, 60 ether, 500_000e18, 2_000_000e18);
@@ -45,79 +50,141 @@ contract TreasuryAttacks is Test {
     }
 
     function testReentrantPayeeCannotDrain() public {
-        ReentrantPayee attacker = new ReentrantPayee(treasury);
+        ReentrantPayee attacker = new ReentrantPayee(treasury, 0);
+        uint256 id =
+            createImmediate(registry, address(timelock), address(attacker), address(0), 5 ether);
+        attacker = new ReentrantPayee(treasury, id);
+        // The attacker contract is the recipient; recreate with the right id.
+        // (The first deployment above consumes a nonce and is not the payee.)
+        id = createImmediate(registry, address(timelock), address(attacker), address(0), 5 ether);
+
         vm.prank(address(timelock));
         vm.expectRevert();
-        treasury.sendETH(payable(address(attacker)), 5 ether, 1, 0);
+        treasury.payGrant(id, 5 ether);
     }
 
-    function testDoublePayoutAndMilestoneReplayRevert() public {
-        GrantRegistry.CreateGrantParams memory p = GrantRegistry.CreateGrantParams({
-            recipient: payee,
-            token: address(0),
-            total: 10 ether,
-            grantType: GrantRegistry.GrantType.Milestone,
-            proposalId: 1,
-            vesting: address(0),
-            reviewer: address(this)
-        });
+    function testImmediateReplayReverts() public {
+        uint256 id = createImmediate(registry, address(timelock), payee, address(0), 10 ether);
+        vm.prank(address(timelock));
+        treasury.payGrant(id, 10 ether);
+        vm.prank(address(timelock));
+        vm.expectRevert();
+        treasury.payGrant(id, 1 ether);
+    }
+
+    function testBatchDuplicateMilestoneRevertsAtomically() public {
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = 1 ether;
+        uint64[] memory dues = new uint64[](1);
+        uint256 id = createMilestone(registry, address(timelock), payee, address(0), amounts, dues);
+        submitAndApprove(registry, address(timelock), payee, id, 0);
+
+        uint256[] memory ids = new uint256[](2);
+        ids[0] = id;
+        ids[1] = id;
+        uint256[] memory indexes = new uint256[](2);
+
+        vm.prank(address(timelock));
+        vm.expectRevert();
+        treasury.payMilestoneBatch(ids, indexes);
+
+        assertEq(payee.balance, 0);
+        assertEq(
+            uint256(registry.milestone(id, 0).status),
+            uint256(GrantRegistry.MilestoneStatus.Approved)
+        );
+    }
+
+    function testMilestoneReplayReverts() public {
         uint256[] memory amounts = new uint256[](1);
         amounts[0] = 10 ether;
         uint64[] memory dues = new uint64[](1);
         dues[0] = uint64(block.timestamp + 1 days);
-        vm.prank(address(timelock));
-        uint256 id = registry.createGrant(p, "ipfs://m", amounts, dues);
+        uint256 id = createMilestone(registry, address(timelock), payee, address(0), amounts, dues);
+        submitAndApprove(registry, address(timelock), payee, id, 0);
 
-        vm.prank(payee);
-        registry.submitEvidence(id, 0, "ipfs://e");
-        registry.approveMilestone(id, 0);
         vm.prank(address(timelock));
-        registry.recordPayout(id, 0, 10 ether);
-        // Replay the same milestone: reverts (already Paid).
+        treasury.payMilestone(id, 0);
+        assertEq(payee.balance, 10 ether);
+
         vm.prank(address(timelock));
         vm.expectRevert();
-        registry.recordPayout(id, 0, 10 ether);
+        treasury.payMilestone(id, 0);
     }
 
-    function testCapBypassViaBatchRevertsOnDailyCap() public {
-        // Each call is under per-call cap, but the day total exceeds daily cap.
+    function testCapBypassViaRepeatedCallsRevertsOnDailyCap() public {
+        uint256 id1 = createImmediate(registry, address(timelock), payee, address(0), 40 ether);
+        uint256 id2 = createImmediate(registry, address(timelock), payee, address(0), 30 ether);
+
         vm.prank(address(timelock));
-        treasury.sendETH(payee, 40 ether, 1, 0);
+        treasury.payGrant(id1, 40 ether);
         vm.prank(address(timelock));
         vm.expectRevert(Treasury.DailyCapExceeded.selector);
-        treasury.sendETH(payee, 30 ether, 2, 0);
+        treasury.payGrant(id2, 30 ether);
     }
 
-    function testPauseBypassRevertsOnExecuteAndTyped() public {
+    function testPauseBypassRevertsOnTypedPayout() public {
+        uint256 id = createImmediate(registry, address(timelock), payee, address(0), 10 ether);
         vm.prank(guardian);
         treasury.pause(1 hours);
         vm.prank(address(timelock));
         vm.expectRevert(Treasury.PausedOutflows.selector);
-        treasury.sendETH(payee, 1 ether, 1, 0);
-        vm.prank(address(timelock));
-        vm.expectRevert(Treasury.PausedOutflows.selector);
-        treasury.execute(payee, 1 ether, bytes(""));
+        treasury.payGrant(id, 1 ether);
     }
 
     function testUnauthorizedPayoutReverts() public {
+        uint256 id = createImmediate(registry, address(timelock), payee, address(0), 10 ether);
         vm.expectRevert();
-        treasury.sendETH(payee, 1 ether, 1, 0);
+        treasury.payGrant(id, 1 ether);
     }
 
-    function testVestingDoubleReleaseAndReleaseAfterRevoke() public {
-        GrantVestingRevocable v =
-            new GrantVestingRevocable(payee, address(timelock), uint64(block.timestamp), 1000, 100);
+    function testVestingDoubleReleaseReverts() public {
+        GrantVestingRevocable v = new GrantVestingRevocable(
+            payee, address(treasury), address(treasury), uint64(block.timestamp), 1000, 100
+        );
+        uint256 grantId =
+            createVesting(registry, address(timelock), payee, address(0), 10 ether, address(v));
         vm.prank(address(timelock));
-        treasury.fundVesting(payable(address(v)), 10 ether, 1);
+        treasury.fundVesting(grantId, 10 ether);
         vm.warp(block.timestamp + 600);
         v.release();
-        // Nothing left vested at the same timestamp: second release reverts.
         vm.expectRevert();
         v.release();
-        // Revoke after full vesting returns nothing but marks revoked.
-        vm.warp(block.timestamp + 1000);
+    }
+
+    function testReleaseAfterRevokeUsesFrozenSchedule() public {
+        GrantVestingRevocable v = new GrantVestingRevocable(
+            payee, address(treasury), address(treasury), uint64(block.timestamp), 1000, 100
+        );
+        uint256 grantId =
+            createVesting(registry, address(timelock), payee, address(0), 10 ether, address(v));
+        vm.prank(address(timelock));
+        treasury.fundVesting(grantId, 10 ether);
+
+        vm.warp(block.timestamp + 600); // 6 ETH vested, none released
+        vm.prank(address(timelock));
+        treasury.revokeVesting(grantId, "revoked");
+
+        // At t=700 the old implementation would try to release 7 ETH while
+        // only 6 ETH remained, reverting forever. The frozen schedule pays 6.
+        vm.warp(block.timestamp + 100);
+        v.release();
+        assertEq(payee.balance, 6 ether);
+        vm.expectRevert();
+        v.release();
+    }
+
+    function testERC20RevocationIsPerAsset() public {
+        // A vesting wallet with ETH revoked can still revoke an ERC20 asset.
+        GrantVestingRevocable v = new GrantVestingRevocable(
+            payee, address(timelock), address(treasury), uint64(block.timestamp), 1000, 0
+        );
         vm.prank(address(timelock));
         v.revoke();
         assertTrue(v.revoked());
+        GrantToken erc20 = new GrantToken(1_000e18, address(this));
+        vm.prank(address(timelock));
+        v.revokeERC20(address(erc20));
+        assertTrue(v.erc20Revoked(address(erc20)));
     }
 }

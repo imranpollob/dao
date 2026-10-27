@@ -9,7 +9,7 @@ import {GrantGovernor} from "../src/GrantGovernor.sol";
 import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol";
 import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
 
-/// @notice Local demo profile: short delays, open caps, self-admin timelock.
+/// @notice Local demo profile: short delays, explicit caps, self-admin timelock.
 contract DeployLocal is Script {
     function run() external {
         uint256 deployerPK = vm.envOr(
@@ -23,16 +23,24 @@ contract DeployLocal is Script {
         GrantToken token = new GrantToken(1_000_000e18, deployer);
         TimelockController timelock =
             new TimelockController(60, new address[](0), new address[](0), deployer);
-        GrantGovernor governor = new GrantGovernor(IVotes(address(token)), timelock, 0, 1, 10, 4);
-        Treasury treasury = new Treasury(deployer);
-        GrantRegistry registry = new GrantRegistry(address(timelock));
+        GrantGovernor governor =
+            new GrantGovernor(IVotes(address(token)), timelock, 0, 1, 10, 4, deployer);
+        GrantRegistry registry = new GrantRegistry(deployer);
+        Treasury treasury = new Treasury(deployer, registry);
 
         timelock.grantRole(timelock.PROPOSER_ROLE(), address(governor));
         timelock.grantRole(timelock.EXECUTOR_ROLE(), address(0));
-        timelock.grantRole(timelock.CANCELLER_ROLE(), deployer);
-        treasury.setPauser(deployer);
+        timelock.grantRole(timelock.CANCELLER_ROLE(), address(governor));
+
+        registry.setTreasury(address(treasury));
+        treasury.setCaps(100 ether, 1_000 ether, 1_000_000e18, 5_000_000e18);
+        treasury.setProposalCaps(250 ether, 2_000_000e18);
         treasury.setTreasuryFloor(0);
+        treasury.setPauser(deployer);
+        treasury.setEnforceAllowlist(true);
         treasury.transferOwnership(address(timelock));
+        registry.transferOwnership(address(timelock));
+
         timelock.grantRole(timelock.DEFAULT_ADMIN_ROLE(), address(timelock));
         timelock.renounceRole(timelock.DEFAULT_ADMIN_ROLE(), deployer);
 

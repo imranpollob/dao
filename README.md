@@ -1,116 +1,141 @@
 # Grant DAO
 
-A decentralized autonomous organization (DAO) governance system for managing grants and treasury funds. Built with Solidity and Foundry, leveraging OpenZeppelin's battle-tested governance contracts.
+A governance-first grants system: token holders approve grants, the Treasury
+pays only registry-backed obligations, and vesting grants can be revoked with
+unvested funds returned to the Treasury.
 
-## Overview
+Built with Solidity 0.8.24, Foundry, and OpenZeppelin v5.
 
-Grant DAO enables token holders to propose, vote on, and execute grant distributions from a managed treasury. The system implements a robust governance framework with timelock controls, ensuring transparent and democratic fund allocation.
+## Security model in one minute
 
-## Core Features
-
-### 🗳️ **Governance System**
-- **Token-Based Voting**: ERC20Votes governance token (GDT) with checkpointed voting power
-- **Proposal Creation**: Token holders can create proposals for fund distribution
-- **Democratic Voting**: Simple counting mechanism (For/Against/Abstain)
-- **Quorum Requirements**: Configurable quorum percentage to ensure sufficient participation
-- **Timelock Protection**: All approved proposals execute through a timelock delay for security
-
-### 💰 **Treasury Management**
-- **ETH Grant Proposals**: Distribute native ETH from the treasury
-- **ERC20 Grant Proposals**: Distribute any ERC20 tokens held by the treasury
-- **Secure Execution**: Only timelock-controlled execution of treasury operations
-- **Reentrancy Protection**: Built-in security measures for all treasury operations
-
-### ⏱️ **Vesting Schedules**
-- **Linear Vesting**: Create vesting wallets for beneficiaries
-- **Flexible Configuration**: Customizable start times and durations
-- **Token & ETH Support**: Vest both native ETH and ERC20 tokens
-
-### 🔐 **Security Features**
-- **Timelock Controller**: Mandatory delay before proposal execution
-- **Role-Based Access**: Granular permission system for governance operations
-- **Proposal Thresholds**: Minimum token requirements to create proposals
-- **Voting Delays & Periods**: Configurable timing for fair participation
+- **No arbitrary Treasury execution.** `execute`, `recoverERC20`, and
+  caller-specified recipients/tokens are gone from the grant surface.
+- **Registry-bound payouts.** `Treasury.payGrant`, `payMilestone`,
+  `payMilestoneBatch`, `fundVesting`, and `fundVestingERC20` derive recipient,
+  token, and milestone amounts from `GrantRegistry`. Only the Treasury can
+  record payouts, funding, cancel, or revoke.
+- **Stored spend policy.** Per-call, daily, and per-Treasury-call proposal caps,
+  plus optional per-token policy, treasury floor, and a default-on ERC20
+  allowlist. Batch totals are charged before any external call.
+- **Governance-only milestones.** Only the Timelock can approve or reject
+  evidence. The `reviewer` field is advisory metadata.
+- **Guardian veto.** A guardian multisig can pause Treasury grant outflows
+  (time-bounded) and cancel proposals in Pending, Active, Succeeded, or Queued
+  states. Already-vested releases from a vesting wallet remain a beneficiary
+  right during a pause.
+- **Revocable vesting by default.** Vesting is per-asset; revocation freezes the
+  already-vested amount and returns unvested funds to the Treasury. The vesting
+  admin and immutable refund treasury must be the Treasury, and its beneficiary
+  must match the grant recipient, so funding, revocation, and registry
+  accounting stay atomic.
+- **Deployment safety.** Production deploy requires a guardian contract
+  distinct from the deployer and a separate token holder. The holder must
+  self-delegate; `DelegateToken.s.sol` is provided. The deployer renounces all
+  roles and the Timelock is self-administered.
 
 ## Architecture
 
-- **GrantToken**: ERC20 governance token with permit and voting extensions
-- **GrantGovernor**: OpenZeppelin Governor with Settings, Counting, Votes, Quorum, and Timelock
-- **Treasury**: Typed payouts (`sendETH`, `sendERC20`, `fundVesting`) with caps, floor, allowlist, and time-bounded pause; owned by the Timelock
-- **GrantRegistry**: Grant lifecycle (Immediate, Milestone, Vesting) with evidence, reviewer approval, commitment accounting, and cancel/revoke
-- **GrantVestingRevocable**: Cliff plus linear vesting with beneficiary/admin split and timelock-only revoke
-- **ProposalBuilder**: Batch, vesting, and milestone payout builders plus `ProposalRisk` scanner
+| Contract | Responsibility |
+|---|---|
+| `GrantToken` | ERC20 + Permit + Votes governance token |
+| `GrantGovernor` | OZ Governor (Settings, Counting, Storage, Votes, Quorum, TimelockControl) plus guardian veto |
+| `Treasury` | The only value-moving grant path; validates against registry and enforces stored policy |
+| `GrantRegistry` | Grant/milestone lifecycle, commitment accounting, Treasury-only payout recording |
+| `GrantVestingRevocable` | Cliff + linear vesting, per-asset revocation, unvested return to Treasury |
+| `ProposalBuilder` | Typed proposal builders for create/approve/reject/pay/fund/revoke/cancel |
+| `ProposalRisk` | Preflight scanner for approvals, unknown selectors, role/upgrade/ownership changes |
 
 ## Attack table
 
-| Attack | Result | Proof |
+| Attack | Result | Evidence |
 |---|---|---|
-| Pure flashloan vote | Fails (checkpoint) | `test/attacks/GovernanceAttacks.t.sol` |
-| Borrow-and-hold quorum | Passes vote, payout blocked by caps | Same suite |
-| Raw `execute` drain | Works unless allowlist enforced (residual risk) | Same suite |
-| Reentrant recipient | Reverts | `test/attacks/TreasuryAttacks.t.sol` |
-| Fee-on-transfer token | Rejected on deposit | `test/TreasuryPolicy.t.sol` |
-| Double payout / replay | Reverts | `test/attacks/TreasuryAttacks.t.sol` |
+| Pure flashloan vote | Fails (checkpoint) | `GovernanceAttacks.testPureFlashloanVoteFails` |
+| Borrow-and-hold quorum | Vote can pass; stored caps/floor contain payout | `GovernanceAttacks.testBorrowAndHoldIsRealVectorButTypedCapContains` |
+| Raw `execute` drain | Path removed; proposal targeting old selector reverts | `GovernanceAttacks.testRawExecutePathRemoved` |
+| Reentrant recipient | Reverts | `TreasuryAttacks.testReentrantPayeeCannotDrain` |
+| Double payout / replay | Reverts | `TreasuryAttacks.testImmediateReplayReverts`, `testMilestoneReplayReverts` |
+| Cap bypass via repeated calls | Daily cap blocks | `TreasuryAttacks.testCapBypassViaRepeatedCallsRevertsOnDailyCap` |
+| Fee-on-transfer token | Rejected on deposit and payout | `TreasuryPolicy` tests |
+| Release after revoke | Frozen schedule; no underflow/lock | `TreasuryAttacks.testReleaseAfterRevokeUsesFrozenSchedule` |
+| Guardian veto | Pending/Active/Succeeded/Queued cancel | `SecurityAndVesting` guardian tests |
 
-## Demo
+## Local demo
 
 ```bash
 anvil &
-make demo
+make demo          # DeployLocal: token, timelock, governor, registry, treasury
+make demo-test     # Full lifecycle with report: deploy -> grant -> vote -> queue -> execute
 ```
 
-Then run the ops scripts (`Doctor`, `Roles`, `SimulateProposal`,
-`CancelProposal`). Full docs: `docs/GRANT_LIFECYCLE.md`,
-`docs/GOVERNANCE.md`, `docs/ROLES.md`, `docs/RUNBOOK.md`,
-`docs/THREAT_MODEL.md`, `docs/INVARIANTS.md`, `docs/AUDIT_REPORT.md`.
-Disclosure policy: `SECURITY.md`.
+`make demo-test` runs `test/DemoLifecycle.t.sol` and prints addresses, grant id,
+recipient delta, registry paid/committed, and available Treasury balance.
 
-## Technology Stack
+## Production deployment
 
-- **Solidity**: ^0.8.24
-- **Foundry**: Development framework and testing
-- **OpenZeppelin Contracts**: v5.4.0 for governance and security primitives
-- **EVM**: Cancun compatible
+Required inputs:
 
-## Getting Started
+1. `GUARDIAN_ADDRESS`: a multisig/contract, not the deployer.
+2. `TOKEN_HOLDER`: a separate account/contract that can self-delegate.
+3. Allowed ERC20 tokens and per-token caps. ETH-only deployment needs no token
+   allowlist entries.
+4. Treasury funding.
 
-### Prerequisites
-- [Foundry](https://book.getfoundry.sh/getting-started/installation)
-
-### Build
 ```bash
-forge build
+cp .env.example .env
+# set PRIVATE_KEY, RPC_URL, GUARDIAN_ADDRESS, TOKEN_HOLDER
+forge script script/Deploy.s.sol --rpc-url "$RPC_URL" --broadcast
+
+# Run from the token holder account. A multisig must submit the equivalent
+# token.delegate(holder) transaction.
+TOKEN=... TOKEN_HOLDER_PRIVATE_KEY=... forge script script/DelegateToken.s.sol --rpc-url "$RPC_URL" --broadcast
+
+make doctor
 ```
 
-### Test
-```bash
-forge test
-```
-
-### Deploy
-```bash
-forge script script/Deploy.s.sol --rpc-url <RPC_URL> --broadcast
-```
+The deploy script **does not fake delegation** by calling
+`token.delegate(tokenHolder)` from the deployer. Until the holder self-delegates,
+the DAO has no quorum. `Doctor` reports `token holder votes` so this is visible.
 
 ## Scripts
 
-The project includes ready-to-use scripts for common operations:
-- `Deploy.s.sol`: Deploy complete DAO system
-- `ProposeEthGrant.s.sol`: Create ETH grant proposals
-- `ProposeErc20Grant.s.sol`: Create ERC20 grant proposals
-- `CastVote.s.sol`: Vote on active proposals
-- `QueueProposal.s.sol`: Queue approved proposals
-- `ExecuteProposal.s.sol`: Execute queued proposals
-- `DeployVesting.s.sol`: Create vesting wallets
+| Script | Purpose |
+|---|---|
+| `Deploy.s.sol` | Production profile with required guardian/token holder and post-deploy assertions |
+| `DeployLocal.s.sol` | Local profile; deployer is holder/guardian and self-delegates |
+| `DelegateToken.s.sol` | Token holder self-delegation (or Safe equivalent) |
+| `CreateGrant.s.sol` | Propose a grant (`GRANT_TYPE`, `RECIPIENT`, `TOTAL`, `TOKEN`, `VESTING`, milestone CSV) |
+| `ProposeEthGrant.s.sol` / `ProposeErc20Grant.s.sol` | Propose an Immediate grant payout by `GRANT_ID` |
+| `SubmitEvidence.s.sol` | Recipient submits milestone evidence (`GRANT_ID`, `MILESTONE_ID`, `EVIDENCE_URI`) |
+| `ProposeMilestoneApproval.s.sol` / `ProposeMilestoneRejection.s.sol` | Propose milestone approval or rejection (`GRANT_ID`, `MILESTONE_ID`, `REASON`) |
+| `ReleaseVesting.s.sol` | Beneficiary releases vested ETH or ERC20 (`VESTING`, `TOKEN=0` for ETH) |
+| `ProposeVestingFunding.s.sol` / `ProposeVestingRevoke.s.sol` | Propose vesting funding (ETH `AMOUNT_WEI` or ERC20 `AMOUNT`) or revocation |
+| `ProposeCancelGrant.s.sol` | Propose cancelling an unfunded grant (`GRANT_ID`, `REASON`) |
+| `RotateGuardian.s.sol` | Propose rotating both Governor guardian and Treasury pauser |
+| `CastVote`, `QueueProposal`, `ExecuteProposal`, `QueueAndExecute` | Voting and execution; `QueueAndExecute` reads stored proposal details |
+| `SimulateProposal.s.sol` | Load stored proposal, scan calldata, print policy, fail on risk flags |
+| `CancelProposal.s.sol` | Proposer/guardian cancel path |
+| `DeployVesting.s.sol` | Deploy revocable vesting; admin/treasury must equal Treasury and beneficiary must match the grant recipient |
+| `Doctor.s.sol`, `Roles.s.sol` | Health and role reports |
+
+## Known limitations
+
+- A "per-proposal" cap is enforced at each Treasury call because the Treasury
+  does not receive the Governor proposal id. Multiple calls in one proposal are
+  still bounded by the daily cap and per-grant remainder.
+- `payMilestoneBatch` is ETH-only; ERC20 milestones are paid one at a time with
+  `payMilestone`.
+- The protocol has no frontend or indexer by design; reads are on-chain views.
+- Borrow-and-hold quorum is economic, not eliminated by code.
+- An external audit and formal verification are still outstanding.
 
 ## Testing
 
-Comprehensive test suite covering:
-- Complete governance flow (propose → vote → queue → execute)
-- Treasury security and access controls
-- Vesting functionality
-- Edge cases and failure scenarios
+```bash
+forge test
+forge coverage
+make security
+```
 
-## License
-
-MIT
+The suite includes governance lifecycle, Treasury policy/attack tests, registry
+state tests, vesting revocation tests, proposal-risk tests, and a handler-based
+invariant campaign.

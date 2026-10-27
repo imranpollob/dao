@@ -3,22 +3,45 @@ pragma solidity ^0.8.24;
 
 import "forge-std/Script.sol";
 import {GrantGovernor} from "../src/GrantGovernor.sol";
+import {IGovernor} from "@openzeppelin/contracts/governance/IGovernor.sol";
 
+/// @notice Queue a succeeded proposal or execute a queued one using the
+/// proposal parameters stored by GovernorStorage.
 contract QueueAndExecute is Script {
-    // If your Timelock delay is known, pass it via env for local `warp`
     function run() external {
         address payable governorAddr = payable(vm.envAddress("GOVERNOR"));
         uint256 proposalId = vm.envUint("PROPOSAL_ID");
-        uint256 timelockDelay = vm.envOr("TIMELOCK_DELAY", uint256(0)); // seconds; only used for local warp
-        bool isLocal = vm.envOr("LOCAL_CHAIN", true); // set false on live networks
+        bool tryExecute = vm.envOr("TRY_EXECUTE", true);
+
+        GrantGovernor governor = GrantGovernor(governorAddr);
+        (
+            address[] memory targets,
+            uint256[] memory values,
+            bytes[] memory calldatas,
+            bytes32 descriptionHash
+        ) = governor.proposalDetails(proposalId);
 
         uint256 pk = vm.envUint("PRIVATE_KEY");
         vm.startBroadcast(pk);
 
-        // NOTE: In OZ v5, queue and execute require the full proposal parameters
-        // This script assumes you have the parameters, but for simplicity, we'll skip the queue/execute calls
-        // as they need targets, values, calldatas, descriptionHash
-        console2.log("Queue and execute not implemented in this script for OZ v5");
+        IGovernor.ProposalState s = governor.state(proposalId);
+        console2.log("initial state:", uint256(s));
+        if (s == IGovernor.ProposalState.Succeeded) {
+            governor.queue(targets, values, calldatas, descriptionHash);
+            s = governor.state(proposalId);
+            console2.log("queued; state:", uint256(s));
+        }
+        if (tryExecute && s == IGovernor.ProposalState.Queued) {
+            uint256 eta = governor.proposalEta(proposalId);
+            if (eta > block.timestamp) {
+                console2.log("not executed; timelock ETA:", eta);
+            } else {
+                governor.execute(targets, values, calldatas, descriptionHash);
+                console2.log("executed");
+            }
+        } else {
+            console2.log("not executed; rerun after the timelock delay");
+        }
 
         vm.stopBroadcast();
     }

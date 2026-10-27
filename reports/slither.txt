@@ -1,83 +1,102 @@
 
+Detector: arbitrary-send-eth
+Treasury._pay(uint256,uint256,GrantRegistry.Grant,uint256) (src/Treasury.sol#354-381) sends eth to arbitrary user
+	Dangerous calls:
+	- (ok,None) = address(g.recipient).call{value: amount}() (src/Treasury.sol#367)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#functions-that-send-ether-to-arbitrary-destinations
+
 Detector: incorrect-equality
-GrantVestingRevocable.fundERC20(address,uint256) (src/GrantVestingRevocable.sol#81-89) uses a dangerous strict equality:
-	- require(bool,string)(received == amount,fee-on-transfer rejected) (src/GrantVestingRevocable.sol#86)
+GrantVestingRevocable.fundERC20(address,uint256) (src/GrantVestingRevocable.sol#98-107) uses a dangerous strict equality:
+	- require(bool,string)(received == amount,fee-on-transfer rejected) (src/GrantVestingRevocable.sol#104)
 Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#dangerous-strict-equalities
 
-Detector: missing-zero-check
-Treasury.constructor(address).timelock (src/Treasury.sol#76) lacks a zero-check on :
-		- pauser = timelock (src/Treasury.sol#83)
-Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#missing-zero-address-validation
-
 Detector: calls-loop
-Treasury.batchSendETH(address[],uint256[],uint256[],uint256[],uint256) (src/Treasury.sol#216-241) has external calls inside a loop: (ok,None) = tos[i_scope_0].call{value: amounts[i_scope_0]}() (src/Treasury.sol#237)
+Treasury._grant(uint256) (src/Treasury.sol#260-263) has external calls inside a loop: g = registry.grants(grantId) (src/Treasury.sol#261)
+	Calls stack containing the loop:
+		Treasury.payMilestoneBatch(uint256[],uint256[])
+		Treasury._validateMilestone(uint256,uint256)
+Treasury._validateMilestone(uint256,uint256) (src/Treasury.sol#265-275) has external calls inside a loop: m = registry.milestone(grantId,milestoneId) (src/Treasury.sol#273)
+	Calls stack containing the loop:
+		Treasury.payMilestoneBatch(uint256[],uint256[])
+Treasury.payMilestoneBatch(uint256[],uint256[]) (src/Treasury.sol#319-352) has external calls inside a loop: g_scope_1 = registry.grants(grantIds[i_scope_0]) (src/Treasury.sol#345)
+Treasury.payMilestoneBatch(uint256[],uint256[]) (src/Treasury.sol#319-352) has external calls inside a loop: m_scope_2 = registry.milestone(grantIds[i_scope_0],milestoneIds[i_scope_0]) (src/Treasury.sol#346)
+Treasury.payMilestoneBatch(uint256[],uint256[]) (src/Treasury.sol#319-352) has external calls inside a loop: registry.recordPayout(grantIds[i_scope_0],milestoneIds[i_scope_0],m_scope_2.amount) (src/Treasury.sol#347)
+Treasury.payMilestoneBatch(uint256[],uint256[]) (src/Treasury.sol#319-352) has external calls inside a loop: (ok,None) = address(g_scope_1.recipient).call{value: m_scope_2.amount}() (src/Treasury.sol#348)
 Reference: https://github.com/crytic/slither/wiki/Detector-Documentation/#calls-inside-a-loop
 
+Detector: reentrancy-events
+Reentrancy in Treasury.cancelGrant(uint256,string) (src/Treasury.sol#452-459):
+	External calls:
+	- registry.cancelGrant(grantId,reason) (src/Treasury.sol#457)
+	Event emitted after the call(s):
+	- GrantCancelled(grantId,reason) (src/Treasury.sol#458)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#reentrancy-vulnerabilities-4
+
 Detector: timestamp
-GrantVestingRevocable._schedule(uint256,uint64) (src/GrantVestingRevocable.sol#107-111) uses timestamp for comparisons
+GrantVestingRevocable._schedule(uint256,uint64) (src/GrantVestingRevocable.sol#125-129) uses timestamp for comparisons
 	Dangerous comparisons:
-	- total == 0 || timestamp < cliffEnd() (src/GrantVestingRevocable.sol#108)
-	- timestamp >= end() (src/GrantVestingRevocable.sol#109)
-GrantVestingRevocable.releasableETH() (src/GrantVestingRevocable.sol#113-116) uses timestamp for comparisons
+	- total == 0 || timestamp < cliffEnd() (src/GrantVestingRevocable.sol#126)
+	- timestamp >= end() (src/GrantVestingRevocable.sol#127)
+GrantVestingRevocable._releasableETH(uint64) (src/GrantVestingRevocable.sol#131-134) uses timestamp for comparisons
 	Dangerous comparisons:
-	- vested > releasedETH (src/GrantVestingRevocable.sol#115)
-GrantVestingRevocable.releasableERC20(address) (src/GrantVestingRevocable.sol#118-122) uses timestamp for comparisons
+	- vested > releasedETH (src/GrantVestingRevocable.sol#133)
+GrantVestingRevocable._releasableERC20(address,uint64) (src/GrantVestingRevocable.sol#136-140) uses timestamp for comparisons
 	Dangerous comparisons:
-	- vested > rel (src/GrantVestingRevocable.sol#121)
-GrantVestingRevocable.release() (src/GrantVestingRevocable.sol#124-131) uses timestamp for comparisons
+	- vested > rel (src/GrantVestingRevocable.sol#139)
+GrantVestingRevocable.release() (src/GrantVestingRevocable.sol#152-159) uses timestamp for comparisons
 	Dangerous comparisons:
-	- require(bool,string)(amount > 0,nothing vested) (src/GrantVestingRevocable.sol#126)
-	- require(bool,string)(ok,eth send failed) (src/GrantVestingRevocable.sol#129)
-GrantVestingRevocable.releaseERC20(address) (src/GrantVestingRevocable.sol#133-139) uses timestamp for comparisons
+	- require(bool,string)(amount > 0,nothing vested) (src/GrantVestingRevocable.sol#154)
+	- require(bool,string)(ok,eth send failed) (src/GrantVestingRevocable.sol#158)
+GrantVestingRevocable.releaseERC20(address) (src/GrantVestingRevocable.sol#161-167) uses timestamp for comparisons
 	Dangerous comparisons:
-	- require(bool,string)(amount > 0,nothing vested) (src/GrantVestingRevocable.sol#135)
-GrantVestingRevocable.revoke() (src/GrantVestingRevocable.sol#142-155) uses timestamp for comparisons
+	- require(bool,string)(amount > 0,nothing vested) (src/GrantVestingRevocable.sol#163)
+GrantVestingRevocable.revoke() (src/GrantVestingRevocable.sol#170-183) uses timestamp for comparisons
 	Dangerous comparisons:
-	- back > 0 (src/GrantVestingRevocable.sol#151)
-	- require(bool,string)(ok,revoke send failed) (src/GrantVestingRevocable.sol#153)
-	- ethBal > owed (src/GrantVestingRevocable.sol#148)
-GrantVestingRevocable.revokeERC20(address) (src/GrantVestingRevocable.sol#157-164) uses timestamp for comparisons
+	- back > 0 (src/GrantVestingRevocable.sol#179)
+	- require(bool,string)(ok,revoke send failed) (src/GrantVestingRevocable.sol#181)
+	- ethBal > owed (src/GrantVestingRevocable.sol#176)
+GrantVestingRevocable.revokeERC20(address) (src/GrantVestingRevocable.sol#186-196) uses timestamp for comparisons
 	Dangerous comparisons:
-	- back > 0 (src/GrantVestingRevocable.sol#163)
-	- bal > owed (src/GrantVestingRevocable.sol#161)
-Treasury.paused() (src/Treasury.sol#90-92) uses timestamp for comparisons
+	- back > 0 (src/GrantVestingRevocable.sol#195)
+	- bal > owed (src/GrantVestingRevocable.sol#192)
+Treasury.paused() (src/Treasury.sol#120-122) uses timestamp for comparisons
 	Dangerous comparisons:
-	- block.timestamp < uint256(pauseExpiresAt) (src/Treasury.sol#91)
+	- block.timestamp < uint256(pauseExpiresAt) (src/Treasury.sol#121)
+Treasury.pause(uint64) (src/Treasury.sol#131-140) uses timestamp for comparisons
+	Dangerous comparisons:
+	- paused() && msg.sender != owner() (src/Treasury.sol#136)
 Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#block-timestamp
 
 Detector: assembly
-ProposalRisk.selectorOf(bytes) (src/utils/ProposalRisk.sol#25-31) uses assembly
-	- INLINE ASM (src/utils/ProposalRisk.sol#27-29)
+ProposalRisk.selectorOf(bytes) (src/utils/ProposalRisk.sol#31-37) uses assembly
+	- INLINE ASM (src/utils/ProposalRisk.sol#33-35)
 Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#assembly-usage
 
 Detector: low-level-calls
-Low level call in GrantVestingRevocable.release() (src/GrantVestingRevocable.sol#124-131):
-	- (ok,None) = address(beneficiary).call{value: amount}() (src/GrantVestingRevocable.sol#128)
-Low level call in GrantVestingRevocable.revoke() (src/GrantVestingRevocable.sol#142-155):
-	- (ok,None) = address(admin).call{value: back}() (src/GrantVestingRevocable.sol#152)
-Low level call in Treasury.sendETH(address,uint256,uint256,uint256) (src/Treasury.sol#183-197):
-	- (ok,None) = to.call{value: amount}() (src/Treasury.sol#193)
-Low level call in Treasury.batchSendETH(address[],uint256[],uint256[],uint256[],uint256) (src/Treasury.sol#216-241):
-	- (ok,None) = tos[i_scope_0].call{value: amounts[i_scope_0]}() (src/Treasury.sol#237)
-Low level call in Treasury.execute(address,uint256,bytes) (src/Treasury.sol#281-294):
-	- (ok,ret) = target.call{value: value}(data) (src/Treasury.sol#289)
+Low level call in GrantVestingRevocable.release() (src/GrantVestingRevocable.sol#152-159):
+	- (ok,None) = address(beneficiary).call{value: amount}() (src/GrantVestingRevocable.sol#157)
+Low level call in GrantVestingRevocable.revoke() (src/GrantVestingRevocable.sol#170-183):
+	- (ok,None) = address(treasury).call{value: back}() (src/GrantVestingRevocable.sol#180)
+Low level call in Treasury.payMilestoneBatch(uint256[],uint256[]) (src/Treasury.sol#319-352):
+	- (ok,None) = address(g_scope_1.recipient).call{value: m_scope_2.amount}() (src/Treasury.sol#348)
+Low level call in Treasury._pay(uint256,uint256,GrantRegistry.Grant,uint256) (src/Treasury.sol#354-381):
+	- (ok,None) = address(g.recipient).call{value: amount}() (src/Treasury.sol#367)
 Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#low-level-calls
 
 Detector: missing-inheritance
-GrantVestingRevocable (src/GrantVestingRevocable.sol#14-165) should inherit from IVestingFundable (src/Treasury.sol#9-12)
+GrantVestingRevocable (src/GrantVestingRevocable.sol#13-197) should inherit from IVestingFundable (src/Treasury.sol#10-13)
 Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#missing-inheritance
 
 Detector: naming-convention
-Parameter Treasury.setCaps(uint256,uint256,uint256,uint256)._ethPerCall (src/Treasury.sol#126) is not in mixedCase
-Parameter Treasury.setCaps(uint256,uint256,uint256,uint256)._ethDaily (src/Treasury.sol#127) is not in mixedCase
-Parameter Treasury.setCaps(uint256,uint256,uint256,uint256)._erc20PerCall (src/Treasury.sol#128) is not in mixedCase
-Parameter Treasury.setCaps(uint256,uint256,uint256,uint256)._erc20Daily (src/Treasury.sol#129) is not in mixedCase
+Parameter Treasury.setCaps(uint256,uint256,uint256,uint256)._ethPerCall (src/Treasury.sol#163) is not in mixedCase
+Parameter Treasury.setCaps(uint256,uint256,uint256,uint256)._ethDaily (src/Treasury.sol#164) is not in mixedCase
+Parameter Treasury.setCaps(uint256,uint256,uint256,uint256)._erc20PerCall (src/Treasury.sol#165) is not in mixedCase
+Parameter Treasury.setCaps(uint256,uint256,uint256,uint256)._erc20Daily (src/Treasury.sol#166) is not in mixedCase
+Parameter Treasury.setProposalCaps(uint256,uint256)._ethPerProposal (src/Treasury.sol#180) is not in mixedCase
+Parameter Treasury.setProposalCaps(uint256,uint256)._erc20PerProposal (src/Treasury.sol#180) is not in mixedCase
 Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#conformance-to-solidity-naming-conventions
-
-Detector: redundant-statements
-Redundant expression "targets (src/utils/ProposalRisk.sol#49)" inProposalRisk (src/utils/ProposalRisk.sol#7-57)
-Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#redundant-statements
-. analyzed (68 contracts with 102 detectors), 23 result(s) found
+. analyzed (66 contracts with 102 detectors), 30 result(s) found
+INFO:Slither:reports/slither.json exists already, the overwrite is prevented
 'forge clean' running (wd: /home/imran/dao)
 'forge config --json' running
 'forge build --build-info --deny never --skip ./test/** ./script/** --force' running (wd: /home/imran/dao)

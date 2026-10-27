@@ -5,82 +5,89 @@ import "forge-std/Test.sol";
 import {GrantToken} from "../../src/GrantToken.sol";
 import {GrantGovernor} from "../../src/GrantGovernor.sol";
 import {Treasury} from "../../src/Treasury.sol";
+import {GrantRegistry} from "../../src/GrantRegistry.sol";
 import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol";
 import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
 import {IGovernor} from "@openzeppelin/contracts/governance/IGovernor.sol";
+import {GrantTestBase} from "../helpers/GrantTestBase.sol";
 
 /// @notice Governance attack proofs: flashloan fails, borrow-and-hold is the
-/// real vector, typed payouts contain it, raw execute is the residual risk.
-contract GovernanceAttacks is Test {
+/// real vector, typed payouts contain it, and the raw execute path is gone.
+contract GovernanceAttacks is GrantTestBase {
     GrantToken token;
     TimelockController timelock;
     GrantGovernor governor;
     Treasury treasury;
+    GrantRegistry registry;
 
     address deployer = address(this);
     address attacker = makeAddr("attacker");
     address payable drain = payable(makeAddr("drain"));
+    uint256 drainGrantId;
 
     uint256 constant SUPPLY = 1_000_000e18;
 
     function setUp() public {
         token = new GrantToken(SUPPLY, deployer);
         timelock = new TimelockController(2 days, new address[](0), new address[](0), deployer);
-        governor = new GrantGovernor(IVotes(address(token)), timelock, 40_000e18, 1, 5, 4);
-        treasury = new Treasury(address(timelock));
+        governor = new GrantGovernor(
+            IVotes(address(token)), timelock, 40_000e18, 1, 5, 4, makeAddr("guardian")
+        );
+        registry = new GrantRegistry(address(timelock));
+        treasury = new Treasury(address(timelock), registry);
+        vm.prank(address(timelock));
+        registry.setTreasury(address(treasury));
+
         timelock.grantRole(timelock.PROPOSER_ROLE(), address(governor));
         timelock.grantRole(timelock.EXECUTOR_ROLE(), address(0));
         timelock.renounceRole(timelock.DEFAULT_ADMIN_ROLE(), deployer);
         token.delegate(deployer);
-        vm.roll(block.number + 1); // settle delegation checkpoint before proposing
+        vm.roll(block.number + 1);
         vm.deal(address(treasury), 100 ether);
         vm.prank(address(timelock));
         treasury.setCaps(50 ether, 200 ether, 500_000e18, 2_000_000e18);
         vm.prank(address(timelock));
         treasury.setTreasuryFloor(10 ether);
+
+        drainGrantId = createImmediate(registry, address(timelock), drain, address(0), 100 ether);
     }
 
     function _proposeDrain(uint256 amount)
         internal
+        view
         returns (address[] memory, uint256[] memory, bytes[] memory, bytes32)
     {
         address[] memory targets = new address[](1);
         uint256[] memory values = new uint256[](1);
         bytes[] memory calldatas = new bytes[](1);
         targets[0] = address(treasury);
-        calldatas[0] = abi.encodeWithSelector(
-            Treasury.sendETH.selector, drain, amount, uint256(999), uint256(0)
-        );
+        calldatas[0] = abi.encodeWithSelector(Treasury.payGrant.selector, drainGrantId, amount);
         bytes32 h = keccak256(bytes("drain"));
         return (targets, values, calldatas, h);
     }
 
     function testPureFlashloanVoteFails() public {
-        // Attacker gets tokens AFTER the snapshot: zero weight at that snapshot.
         (address[] memory t, uint256[] memory v, bytes[] memory c, bytes memory _d) =
             _proposeArgs(1 ether);
         string memory desc = string(_d);
         uint256 pid = governor.propose(t, v, c, desc);
         uint256 snapshot = governor.proposalSnapshot(pid);
-        // Flashloan-style: tokens arrive AFTER the snapshot, delegated at once.
         vm.roll(snapshot + 1);
         token.transfer(attacker, 500_000e18);
         vm.prank(attacker);
         token.delegate(attacker);
-        vm.roll(block.number + 1); // settle lookup block (delegation came too late)
-        // Weight at snapshot is zero: attacker cannot move the outcome.
+        vm.roll(block.number + 1);
         assertEq(token.getPastVotes(attacker, snapshot), 0);
     }
 
     function testBorrowAndHoldIsRealVectorButTypedCapContains() public {
-        // Attacker holds quorum BEFORE the snapshot: vote passes (honest model).
         token.transfer(attacker, 500_000e18);
         vm.prank(attacker);
         token.delegate(attacker);
-        vm.roll(block.number + 2); // checkpoint settles
+        vm.roll(block.number + 2);
 
         (address[] memory t, uint256[] memory vals, bytes[] memory c, bytes32 h) =
-            _proposeDrain(51 ether); // over 50 ETH per-call cap
+            _proposeDrain(51 ether);
         string memory desc = "drain";
         uint256 pid = _proposeRaw(desc, t, vals, c);
         assertEq(h, keccak256(bytes(desc)));
@@ -91,15 +98,11 @@ contract GovernanceAttacks is Test {
         assertEq(uint256(governor.state(pid)), uint256(IGovernor.ProposalState.Succeeded));
         governor.queue(t, vals, c, h);
         vm.warp(block.timestamp + 2 days + 1);
-        // Cap contains the blast radius: execution reverts.
         vm.expectRevert();
         governor.execute(t, vals, c, h);
     }
 
-    function testRawExecuteIsResidualRiskWithoutAllowlist() public {
-        // Documents the residual risk: legacy execute has no cap unless
-        // enforceAllowlist is enabled. Production must enable it or remove
-        // the grant path's access to execute.
+    function testRawExecutePathRemoved() public {
         token.transfer(attacker, 500_000e18);
         vm.prank(attacker);
         token.delegate(attacker);
@@ -109,7 +112,9 @@ contract GovernanceAttacks is Test {
         uint256[] memory vals = new uint256[](1);
         bytes[] memory c = new bytes[](1);
         t[0] = address(treasury);
-        c[0] = abi.encodeWithSelector(Treasury.execute.selector, drain, 90 ether, bytes(""));
+        c[0] = abi.encodeWithSelector(
+            bytes4(keccak256("execute(address,uint256,bytes)")), drain, 90 ether, bytes("")
+        );
         uint256 pid = governor.propose(t, vals, c, "raw drain");
         bytes32 h = keccak256(bytes("raw drain"));
         vm.roll(block.number + 2);
@@ -118,18 +123,9 @@ contract GovernanceAttacks is Test {
         vm.roll(block.number + 10);
         governor.queue(t, vals, c, h);
         vm.warp(block.timestamp + 2 days + 1);
-        uint256 before = drain.balance;
+        vm.expectRevert();
         governor.execute(t, vals, c, h);
-        assertEq(drain.balance - before, 90 ether);
-
-        // With allowlist enforcement, the same call reverts.
-        Treasury treasury2 = new Treasury(address(timelock));
-        vm.deal(address(treasury2), 100 ether);
-        vm.prank(address(timelock));
-        treasury2.setEnforceAllowlist(true);
-        vm.prank(address(timelock));
-        vm.expectRevert(Treasury.TargetNotAllowed.selector);
-        treasury2.execute(drain, 1 ether, bytes(""));
+        assertEq(drain.balance, 0);
     }
 
     function testVoteBySigReplayReverts() public {
@@ -180,9 +176,7 @@ contract GovernanceAttacks is Test {
         uint256[] memory vals = new uint256[](1);
         bytes[] memory c = new bytes[](1);
         t[0] = address(treasury);
-        c[0] = abi.encodeWithSelector(
-            Treasury.sendETH.selector, drain, amount, uint256(1), uint256(0)
-        );
+        c[0] = abi.encodeWithSelector(Treasury.payGrant.selector, drainGrantId, amount);
         return (t, vals, c, bytes("grant"));
     }
 

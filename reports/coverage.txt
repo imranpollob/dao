@@ -1,136 +1,129 @@
 Warning: optimizer settings and `viaIR` have been disabled for accurate coverage reports.
 If you encounter "stack too deep" errors, consider using `--ir-minimum` which enables `viaIR` with minimum optimization resolving most of the errors.
 See more: https://book.getfoundry.sh/guides/best-practices/stack-too-deep
-Compiling 109 files with Solc 0.8.24
-Solc 0.8.24 finished in 2.03s
-Compiler run successful with warnings:
-Warning (2072): Unused local variable.
-  --> script/QueueAndExecute.s.sol:10:9:
-   |
-10 |         address payable governorAddr = payable(vm.envAddress("GOVERNOR"));
-   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Warning (2072): Unused local variable.
-  --> script/QueueAndExecute.s.sol:11:9:
-   |
-11 |         uint256 proposalId = vm.envUint("PROPOSAL_ID");
-   |         ^^^^^^^^^^^^^^^^^^
-
-Warning (2072): Unused local variable.
-  --> script/QueueAndExecute.s.sol:12:9:
-   |
-12 |         uint256 timelockDelay = vm.envOr("TIMELOCK_DELAY", uint256(0)); // seconds; only used for local warp
-   |         ^^^^^^^^^^^^^^^^^^^^^
-
-Warning (2072): Unused local variable.
-  --> script/QueueAndExecute.s.sol:13:9:
-   |
-13 |         bool isLocal = vm.envOr("LOCAL_CHAIN", true); // set false on live networks
-   |         ^^^^^^^^^^^^
-
-Warning (2072): Unused local variable.
-   --> test/ComprehensiveScenarios.t.sol:359:9:
-    |
-359 |         uint256 proposalId = governor.propose(targets, values, calldatas, desc);
-    |         ^^^^^^^^^^^^^^^^^^
-
-Warning (2072): Unused local variable.
-  --> test/SecurityAndVesting.t.sol:77:9:
-   |
-77 |         bytes32 CALL_SCHEDULED_SIG =
-   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Warning (2018): Function state mutability can be restricted to view
-  --> test/TreasurySmoke.t.sol:51:5:
-   |
-51 |     function test_snapshot_compile() public {
-   |     ^ (Relevant source part starts here and spans across multiple lines).
-
-Warning (2018): Function state mutability can be restricted to view
-  --> test/attacks/GovernanceAttacks.t.sol:43:5:
-   |
-43 |     function _proposeDrain(uint256 amount)
-   |     ^ (Relevant source part starts here and spans across multiple lines).
-
+Compiling 121 files with Solc 0.8.24
+Solc 0.8.24 finished in 2.43s
+Compiler run successful!
 Analysing contracts...
 Running tests...
 
-Ran 2 tests for test/SecurityAndVesting.t.sol:SecurityAndVestingTest
-[PASS] testGuardianCancellation() (gas: 757692)
-[PASS] testVestingWallet() (gas: 123721)
-Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 10.01ms (10.24ms CPU time)
+Ran 6 tests for test/ProposalRisk.t.sol:ProposalRiskTest
+[PASS] testApprovalFlagged() (gas: 2612)
+[PASS] testEmptyCalldataValueDrainFlagged() (gas: 2345)
+[PASS] testKnownTreasuryPayoutIsClean() (gas: 3743)
+[PASS] testMalformedArraysFlagged() (gas: 1243)
+[PASS] testOwnershipRoleAndUpgradeFlagged() (gas: 4343)
+[PASS] testUnknownSelectorFlagged() (gas: 3814)
+Suite result: ok. 6 passed; 0 failed; 0 skipped; finished in 887.63µs (1.07ms CPU time)
+
+Ran 4 tests for test/ProposalBuilder.t.sol:ProposalBuilderTest
+[PASS] testCreateGrantBuilder() (gas: 9062)
+[PASS] testMilestoneApprovalBuilders() (gas: 9726)
+[PASS] testPayoutBuilders() (gas: 13781)
+[PASS] testVestingBuilders() (gas: 16758)
+Suite result: ok. 4 passed; 0 failed; 0 skipped; finished in 1.02ms (1.21ms CPU time)
+
+Ran 1 test for test/DemoLifecycle.t.sol:DemoLifecycle
+[PASS] testFullLifecycle() (gas: 4569987)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 11.01ms (10.33ms CPU time)
 
 Ran 4 tests for test/attacks/GovernanceAttacks.t.sol:GovernanceAttacks
-[PASS] testBorrowAndHoldIsRealVectorButTypedCapContains() (gas: 975413)
-[PASS] testPureFlashloanVoteFails() (gas: 583807)
-[PASS] testRawExecuteIsResidualRiskWithoutAllowlist() (gas: 1077233)
-[PASS] testVoteBySigReplayReverts() (gas: 723102)
-Suite result: ok. 4 passed; 0 failed; 0 skipped; finished in 15.94ms (26.33ms CPU time)
-
-Ran 5 tests for test/TreasurySmoke.t.sol:TreasurySmoke
-[PASS] testTreasury_Execute_RevertsForNonOwner() (gas: 35996)
-[PASS] testTreasury_Execute_SucceedsForOwner() (gas: 88150)
-[PASS] testTreasury_ReceiveEther() (gas: 15755)
-[PASS] testTreasury_ReentrancyProtection() (gas: 444912)
-[PASS] test_snapshot_compile() (gas: 110680)
-Suite result: ok. 5 passed; 0 failed; 0 skipped; finished in 17.50ms (16.15ms CPU time)
-
-Ran 4 tests for test/Registry.t.sol:RegistryTest
-[PASS] testCancelStopsFuturePayouts() (gas: 297158)
-[PASS] testImmediateLifecycleAndAccounting() (gas: 388143)
-[PASS] testMilestoneEvidenceApprovePayout() (gas: 762010)
-[PASS] testNoSilentAmendmentPath() (gas: 256918)
-Suite result: ok. 4 passed; 0 failed; 0 skipped; finished in 19.46ms (4.86ms CPU time)
+[PASS] testBorrowAndHoldIsRealVectorButTypedCapContains() (gas: 980834)
+[PASS] testPureFlashloanVoteFails() (gas: 557600)
+[PASS] testRawExecutePathRemoved() (gas: 923779)
+[PASS] testVoteBySigReplayReverts() (gas: 696700)
+Suite result: ok. 4 passed; 0 failed; 0 skipped; finished in 21.95ms (28.02ms CPU time)
 
 Ran 3 tests for test/GovernanceFlow.t.sol:GovernanceFlow
-[PASS] testEndToEnd_Erc20Grant() (gas: 1823134)
-[PASS] testEndToEnd_EthGrant() (gas: 848457)
-[PASS] testProposalRejection_InsufficientVotes() (gas: 622511)
-Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 19.61ms (17.91ms CPU time)
+[PASS] testEndToEnd_Erc20Grant() (gas: 2101810)
+[PASS] testEndToEnd_EthGrant() (gas: 1130027)
+[PASS] testProposalRejection_InsufficientVotes() (gas: 765663)
+Suite result: ok. 3 passed; 0 failed; 0 skipped; finished in 22.18ms (15.59ms CPU time)
 
-Ran 6 tests for test/TreasuryPolicy.t.sol:TreasuryPolicyTest
-[PASS] testBatchEnforcesPerProposalCap() (gas: 202156)
-[PASS] testFeeOnTransferRejected() (gas: 1173959)
-[PASS] testFloorBlocksDrain() (gas: 119812)
-[PASS] testPauseBlocksOutflowsNotDeposits() (gas: 327200)
-[PASS] testTypedEthPayoutEnforcesPerCallCap() (gas: 153638)
-[PASS] testVestingFundingAndRevokeInvariant() (gas: 296153)
-Suite result: ok. 6 passed; 0 failed; 0 skipped; finished in 19.74ms (13.44ms CPU time)
+Ran 7 tests for test/Registry.t.sol:RegistryTest
+[PASS] testCancelAfterRevokeCannotDoubleSubtract() (gas: 322359)
+[PASS] testCancelStopsFuturePayouts() (gas: 304605)
+[PASS] testImmediateLifecycleAndAccounting() (gas: 393730)
+[PASS] testMilestoneEvidenceApprovePayout() (gas: 778843)
+[PASS] testMilestoneRejectThenResubmit() (gas: 629150)
+[PASS] testNoSilentAmendmentPath() (gas: 262408)
+[PASS] testVestingFundingReducesTreasuryCommitment() (gas: 439846)
+Suite result: ok. 7 passed; 0 failed; 0 skipped; finished in 22.42ms (13.43ms CPU time)
 
-Ran 6 tests for test/attacks/TreasuryAttacks.t.sol:TreasuryAttacks
-[PASS] testCapBypassViaBatchRevertsOnDailyCap() (gas: 155998)
-[PASS] testDoublePayoutAndMilestoneReplayRevert() (gas: 507656)
-[PASS] testPauseBypassRevertsOnExecuteAndTyped() (gas: 121739)
-[PASS] testReentrantPayeeCannotDrain() (gas: 510998)
-[PASS] testUnauthorizedPayoutReverts() (gas: 38915)
-[PASS] testVestingDoubleReleaseAndReleaseAfterRevoke() (gas: 295980)
-Suite result: ok. 6 passed; 0 failed; 0 skipped; finished in 19.97ms (11.42ms CPU time)
+Ran 6 tests for test/SecurityAndVesting.t.sol:SecurityAndVestingTest
+[PASS] testGuardianCanCancelActive() (gas: 573763)
+[PASS] testGuardianCanCancelPending() (gas: 571439)
+[PASS] testGuardianCanCancelSucceeded() (gas: 729955)
+[PASS] testGuardianCancellation() (gas: 866694)
+[PASS] testGuardianCannotBeZeroAtConstruction() (gas: 10459)
+[PASS] testNonGuardianCannotCancelActive() (gas: 553166)
+Suite result: ok. 6 passed; 0 failed; 0 skipped; finished in 23.26ms (32.27ms CPU time)
+
+Ran 10 tests for test/attacks/TreasuryAttacks.t.sol:TreasuryAttacks
+[PASS] testBatchDuplicateMilestoneRevertsAtomically() (gas: 612099)
+[PASS] testCapBypassViaRepeatedCallsRevertsOnDailyCap() (gas: 589637)
+[PASS] testERC20RevocationIsPerAsset() (gas: 195970)
+[PASS] testImmediateReplayReverts() (gas: 428256)
+[PASS] testMilestoneReplayReverts() (gas: 618749)
+[PASS] testPauseBypassRevertsOnTypedPayout() (gas: 248387)
+[PASS] testReentrantPayeeCannotDrain() (gas: 1093042)
+[PASS] testReleaseAfterRevokeUsesFrozenSchedule() (gas: 696430)
+[PASS] testUnauthorizedPayoutReverts() (gas: 210653)
+[PASS] testVestingDoubleReleaseReverts() (gas: 520724)
+Suite result: ok. 10 passed; 0 failed; 0 skipped; finished in 24.14ms (23.48ms CPU time)
+
+Ran 15 tests for test/TreasuryPolicy.t.sol:TreasuryPolicyTest
+[PASS] testBatchEnforcesPerProposalCap() (gas: 1252388)
+[PASS] testBatchPaysTwoApprovedMilestones() (gas: 834358)
+[PASS] testErc20VestingFundingAndRevoke() (gas: 1916141)
+[PASS] testFeeOnTransferDepositRejected() (gas: 1173981)
+[PASS] testFeeOnTransferPayoutRejected() (gas: 1553744)
+[PASS] testFloorBlocksDrain() (gas: 325258)
+[PASS] testFundedVestingCannotBeCancelled() (gas: 458735)
+[PASS] testGuardianCannotExtendPauseButGovernanceCan() (gas: 111977)
+[PASS] testPauseBlocksOutflowsNotDeposits() (gas: 562288)
+[PASS] testPerTokenPolicyOverridesDefault() (gas: 1653867)
+[PASS] testTypedEthPayoutEnforcesPerCallCap() (gas: 419161)
+[PASS] testVestingFundingAndRevokeInvariant() (gas: 759877)
+[PASS] testVestingFundingRejectsWrongAdmin() (gas: 297549)
+[PASS] testVestingFundingRejectsWrongBeneficiary() (gas: 299476)
+[PASS] testVestingFundingRejectsWrongTreasury() (gas: 298406)
+Suite result: ok. 15 passed; 0 failed; 0 skipped; finished in 24.38ms (54.63ms CPU time)
 
 Ran 18 tests for test/ComprehensiveScenarios.t.sol:ComprehensiveScenarios
-[PASS] testScenario_DoubleExecution() (gas: 882799)
-[PASS] testScenario_ExecuteBeforeTimelock() (gas: 782362)
-[PASS] testScenario_MultipleProposals() (gas: 1635727)
-[PASS] testScenario_ProposalBelowThreshold() (gas: 367533)
-[PASS] testScenario_ProposalCancel() (gas: 421106)
-[PASS] testScenario_ProposalRejected_InsufficientVotes() (gas: 696256)
-[PASS] testScenario_ProposalRejected_NoQuorum() (gas: 460922)
-[PASS] testScenario_QueueBeforeSucceeded() (gas: 408054)
-[PASS] testScenario_SuccessfulErc20Grant() (gas: 995233)
-[PASS] testScenario_SuccessfulEthGrant() (gas: 1058336)
-[PASS] testScenario_TreasuryExecute_FailedCall() (gas: 950881)
-[PASS] testScenario_TreasuryExecute_InsufficientFunds() (gas: 834692)
-[PASS] testScenario_TreasuryExecute_Unauthorized() (gas: 38446)
+[PASS] testScenario_DoubleExecution() (gas: 1134808)
+[PASS] testScenario_ExecuteBeforeTimelock() (gas: 923949)
+[PASS] testScenario_MultipleProposals() (gas: 2122216)
+[PASS] testScenario_ProposalCancel() (gas: 569208)
+[PASS] testScenario_ProposalRejected_InsufficientVotes() (gas: 839655)
+[PASS] testScenario_ProposalRejected_NoQuorum() (gas: 604833)
+[PASS] testScenario_ProposalWithZeroThreshold() (gas: 508694)
+[PASS] testScenario_QueueBeforeSucceeded() (gas: 551382)
+[PASS] testScenario_SuccessfulErc20Grant() (gas: 1221813)
+[PASS] testScenario_SuccessfulEthGrant() (gas: 1192377)
+[PASS] testScenario_TreasuryPayout_FailedCall() (gas: 485575)
+[PASS] testScenario_TreasuryPayout_InsufficientFunds() (gas: 252103)
+[PASS] testScenario_TreasuryPayout_Unauthorized() (gas: 210388)
 [PASS] testScenario_TreasuryReceiveEther() (gas: 15727)
-[PASS] testScenario_VoteAbstain() (gas: 644486)
-[PASS] testScenario_VoteAfterDeadline() (gas: 418950)
-[PASS] testScenario_VoteTwice() (gas: 499820)
-[PASS] testScenario_ZeroAmountGrant() (gas: 793589)
-Suite result: ok. 18 passed; 0 failed; 0 skipped; finished in 20.37ms (86.33ms CPU time)
+[PASS] testScenario_VoteAbstain() (gas: 788332)
+[PASS] testScenario_VoteAfterDeadline() (gas: 562841)
+[PASS] testScenario_VoteTwice() (gas: 643668)
+[PASS] testScenario_ZeroAmountGrantRejected() (gas: 245616)
+Suite result: ok. 18 passed; 0 failed; 0 skipped; finished in 24.78ms (67.96ms CPU time)
+
+Ran 5 tests for test/TreasurySmoke.t.sol:TreasurySmoke
+[PASS] testTreasury_PayGrant_RevertsForNonOwner() (gas: 210603)
+[PASS] testTreasury_PayGrant_SucceedsForOwner() (gas: 391765)
+[PASS] testTreasury_ReceiveEther() (gas: 15703)
+[PASS] testTreasury_ReentrancyProtection() (gas: 740410)
+[PASS] test_snapshot_compile() (gas: 110614)
+Suite result: ok. 5 passed; 0 failed; 0 skipped; finished in 24.37ms (20.05ms CPU time)
 
 Ran 1 test for test/invariants/TreasuryInvariants.t.sol:TreasuryInvariants
 [PASS]
 TreasuryInvariants invariants:
 [PASS] invariant_accountingHolds
+[PASS] invariant_commitmentMatchesRemainder
 [PASS] invariant_floorHolds
  TreasuryInvariants invariants (runs: 256, calls: 128000, reverts: 0)
 
@@ -142,7 +135,88 @@ TreasuryInvariants invariants:
 | TreasuryHandler | payout       | 63693 | 0       | 0        |
 ╰-----------------+--------------+-------+---------+----------╯
 
-Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 17.13s (17.13s CPU time)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 32.26s (32.25s CPU time)
 
-Ran 9 test suites in 17.13s (17.27s CPU time): 49 tests passed, 0 failed, 0 skipped (49 total tests)
-Wrote LCOV report.
+Ran 12 test suites in 32.26s (32.46s CPU time): 80 tests passed, 0 failed, 0 skipped (80 total tests)
+
+╭------------------------------------------+-------------------+-------------------+-----------------+------------------╮
+| File                                     | % Lines           | % Statements      | % Branches      | % Funcs          |
++=======================================================================================================================+
+| script/CancelProposal.s.sol              | 0.00% (0/10)      | 0.00% (0/13)      | N/A (0/0)       | 0.00% (0/1)      |
+|------------------------------------------+-------------------+-------------------+-----------------+------------------|
+| script/CastVote.s.sol                    | 0.00% (0/18)      | 0.00% (0/20)      | N/A (0/0)       | 0.00% (0/2)      |
+|------------------------------------------+-------------------+-------------------+-----------------+------------------|
+| script/CreateGrant.s.sol                 | 0.00% (0/60)      | 0.00% (0/77)      | 0.00% (0/34)    | 0.00% (0/2)      |
+|------------------------------------------+-------------------+-------------------+-----------------+------------------|
+| script/DelegateToken.s.sol               | 0.00% (0/9)       | 0.00% (0/11)      | N/A (0/0)       | 0.00% (0/1)      |
+|------------------------------------------+-------------------+-------------------+-----------------+------------------|
+| script/Deploy.s.sol                      | 0.00% (0/61)      | 0.00% (0/72)      | 0.00% (0/40)    | 0.00% (0/1)      |
+|------------------------------------------+-------------------+-------------------+-----------------+------------------|
+| script/DeployLocal.s.sol                 | 0.00% (0/31)      | 0.00% (0/35)      | N/A (0/0)       | 0.00% (0/1)      |
+|------------------------------------------+-------------------+-------------------+-----------------+------------------|
+| script/DeployVesting.s.sol               | 0.00% (0/20)      | 0.00% (0/23)      | 0.00% (0/2)     | 0.00% (0/1)      |
+|------------------------------------------+-------------------+-------------------+-----------------+------------------|
+| script/Doctor.s.sol                      | 0.00% (0/39)      | 0.00% (0/50)      | 0.00% (0/2)     | 0.00% (0/1)      |
+|------------------------------------------+-------------------+-------------------+-----------------+------------------|
+| script/ExecuteProposal.s.sol             | 0.00% (0/15)      | 0.00% (0/16)      | N/A (0/0)       | 0.00% (0/2)      |
+|------------------------------------------+-------------------+-------------------+-----------------+------------------|
+| script/ProposeCancelGrant.s.sol          | 0.00% (0/15)      | 0.00% (0/20)      | N/A (0/0)       | 0.00% (0/1)      |
+|------------------------------------------+-------------------+-------------------+-----------------+------------------|
+| script/ProposeErc20Grant.s.sol           | 0.00% (0/14)      | 0.00% (0/17)      | N/A (0/0)       | 0.00% (0/1)      |
+|------------------------------------------+-------------------+-------------------+-----------------+------------------|
+| script/ProposeEthGrant.s.sol             | 0.00% (0/14)      | 0.00% (0/17)      | N/A (0/0)       | 0.00% (0/1)      |
+|------------------------------------------+-------------------+-------------------+-----------------+------------------|
+| script/ProposeMilestoneApproval.s.sol    | 0.00% (0/16)      | 0.00% (0/21)      | N/A (0/0)       | 0.00% (0/1)      |
+|------------------------------------------+-------------------+-------------------+-----------------+------------------|
+| script/ProposeMilestoneRejection.s.sol   | 0.00% (0/17)      | 0.00% (0/23)      | N/A (0/0)       | 0.00% (0/1)      |
+|------------------------------------------+-------------------+-------------------+-----------------+------------------|
+| script/ProposeVestingFunding.s.sol       | 0.00% (0/20)      | 0.00% (0/27)      | 0.00% (0/6)     | 0.00% (0/1)      |
+|------------------------------------------+-------------------+-------------------+-----------------+------------------|
+| script/ProposeVestingRevoke.s.sol        | 0.00% (0/15)      | 0.00% (0/20)      | N/A (0/0)       | 0.00% (0/1)      |
+|------------------------------------------+-------------------+-------------------+-----------------+------------------|
+| script/QueueAndExecute.s.sol             | 0.00% (0/23)      | 0.00% (0/29)      | 0.00% (0/5)     | 0.00% (0/1)      |
+|------------------------------------------+-------------------+-------------------+-----------------+------------------|
+| script/QueueProposal.s.sol               | 0.00% (0/15)      | 0.00% (0/16)      | N/A (0/0)       | 0.00% (0/2)      |
+|------------------------------------------+-------------------+-------------------+-----------------+------------------|
+| script/ReleaseVesting.s.sol              | 0.00% (0/12)      | 0.00% (0/15)      | 0.00% (0/2)     | 0.00% (0/1)      |
+|------------------------------------------+-------------------+-------------------+-----------------+------------------|
+| script/Roles.s.sol                       | 0.00% (0/19)      | 0.00% (0/25)      | N/A (0/0)       | 0.00% (0/1)      |
+|------------------------------------------+-------------------+-------------------+-----------------+------------------|
+| script/RotateGuardian.s.sol              | 0.00% (0/22)      | 0.00% (0/29)      | 0.00% (0/6)     | 0.00% (0/1)      |
+|------------------------------------------+-------------------+-------------------+-----------------+------------------|
+| script/SeedDemo.s.sol                    | 0.00% (0/14)      | 0.00% (0/18)      | 0.00% (0/2)     | 0.00% (0/1)      |
+|------------------------------------------+-------------------+-------------------+-----------------+------------------|
+| script/SimulateProposal.s.sol            | 0.00% (0/29)      | 0.00% (0/34)      | 0.00% (0/4)     | 0.00% (0/1)      |
+|------------------------------------------+-------------------+-------------------+-----------------+------------------|
+| script/SubmitEvidence.s.sol              | 0.00% (0/12)      | 0.00% (0/16)      | N/A (0/0)       | 0.00% (0/1)      |
+|------------------------------------------+-------------------+-------------------+-----------------+------------------|
+| src/GrantGovernor.sol                    | 75.68% (28/37)    | 80.95% (34/42)    | 66.67% (2/3)    | 78.57% (11/14)   |
+|------------------------------------------+-------------------+-------------------+-----------------+------------------|
+| src/GrantRegistry.sol                    | 91.67% (121/132)  | 80.81% (139/172)  | 35.85% (19/53)  | 88.89% (16/18)   |
+|------------------------------------------+-------------------+-------------------+-----------------+------------------|
+| src/GrantToken.sol                       | 66.67% (4/6)      | 50.00% (2/4)      | N/A (0/0)       | 66.67% (2/3)     |
+|------------------------------------------+-------------------+-------------------+-----------------+------------------|
+| src/GrantVestingRevocable.sol            | 84.21% (80/95)    | 87.27% (96/110)   | 56.10% (23/41)  | 55.00% (11/20)   |
+|------------------------------------------+-------------------+-------------------+-----------------+------------------|
+| src/Treasury.sol                         | 95.38% (186/195)  | 84.47% (223/264)  | 40.30% (27/67)  | 93.33% (28/30)   |
+|------------------------------------------+-------------------+-------------------+-----------------+------------------|
+| src/utils/ProposalBuilder.sol            | 100.00% (28/28)   | 100.00% (27/27)   | 50.00% (1/2)    | 100.00% (11/11)  |
+|------------------------------------------+-------------------+-------------------+-----------------+------------------|
+| src/utils/ProposalRisk.sol               | 100.00% (34/34)   | 100.00% (103/103) | 100.00% (12/12) | 100.00% (4/4)    |
+|------------------------------------------+-------------------+-------------------+-----------------+------------------|
+| test/ComprehensiveScenarios.t.sol        | 72.73% (16/22)    | 64.71% (11/17)    | 0.00% (0/6)     | 100.00% (5/5)    |
+|------------------------------------------+-------------------+-------------------+-----------------+------------------|
+| test/GovernanceFlow.t.sol                | 70.00% (14/20)    | 62.50% (10/16)    | 16.67% (1/6)    | 100.00% (4/4)    |
+|------------------------------------------+-------------------+-------------------+-----------------+------------------|
+| test/TreasuryPolicy.t.sol                | 100.00% (15/15)   | 100.00% (13/13)   | N/A (0/0)       | 100.00% (4/4)    |
+|------------------------------------------+-------------------+-------------------+-----------------+------------------|
+| test/TreasurySmoke.t.sol                 | 100.00% (8/8)     | 100.00% (5/5)     | 100.00% (1/1)   | 100.00% (3/3)    |
+|------------------------------------------+-------------------+-------------------+-----------------+------------------|
+| test/attacks/TreasuryAttacks.t.sol       | 100.00% (7/7)     | 100.00% (5/5)     | 100.00% (1/1)   | 100.00% (2/2)    |
+|------------------------------------------+-------------------+-------------------+-----------------+------------------|
+| test/helpers/GrantTestBase.sol           | 100.00% (20/20)   | 100.00% (21/21)   | N/A (0/0)       | 100.00% (4/4)    |
+|------------------------------------------+-------------------+-------------------+-----------------+------------------|
+| test/invariants/TreasuryInvariants.t.sol | 91.67% (22/24)    | 92.86% (26/28)    | 71.43% (5/7)    | 100.00% (3/3)    |
+|------------------------------------------+-------------------+-------------------+-----------------+------------------|
+| Total                                    | 50.13% (583/1163) | 48.61% (715/1471) | 30.46% (92/302) | 70.59% (108/153) |
+╰------------------------------------------+-------------------+-------------------+-----------------+------------------╯
