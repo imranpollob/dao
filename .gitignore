@@ -10,11 +10,18 @@ node_modules/
 /broadcast/*/31337/
 /broadcast/**/dry-run/
 
-# Docs
-docs/
+# Python / security tooling
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
 
-# Dotenv file
+# Dotenv files
 .env
+.env.*
+!.env.example
 
 # OS generated files
 .DS_Store
