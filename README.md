@@ -35,15 +35,125 @@ Built with Solidity 0.8.24, Foundry, and OpenZeppelin v5.
 
 ## Architecture
 
+```mermaid
+flowchart TB
+    subgraph GOV["Governance"]
+        H["Token holders"]
+        TOK["GrantToken (ERC20 + Votes)"]
+        G["GrantGovernor"]
+        T["TimelockController"]
+        GU["Guardian multisig"]
+    end
+
+    subgraph CORE["Execution and accounting"]
+        TR["Treasury"]
+        R["GrantRegistry"]
+    end
+
+    subgraph BEN["Beneficiaries"]
+        REC["Grant recipient / vesting beneficiary"]
+        V["GrantVestingRevocable"]
+    end
+
+    H -->|"self-delegate"| TOK
+    TOK -->|"voting power"| G
+    H -->|"vote"| G
+    G -->|"queue / execute"| T
+    GU -.->|"veto via Governor.cancel"| G
+    GU -.->|"pause outflows"| TR
+
+    T -->|"owns + executes"| TR
+    T -->|"owns + executes"| R
+    TR -->|"validates + records"| R
+
+    TR -->|"Immediate / milestone payout"| REC
+    TR -->|"fund vesting"| V
+    V -->|"release vested funds"| REC
+    V -->|"unvested on revoke"| TR
+```
+
+Solid arrows show authority or value flow; dotted arrows show guardian controls.
+The Timelock is the only admin for the Treasury and Registry. The Treasury is the
+only discretionary payout path; a vesting wallet can release only its
+already-funded vested balance to the beneficiary.
+
+### Contracts
+
 | Contract | Responsibility |
 |---|---|
 | `GrantToken` | ERC20 + Permit + Votes governance token |
 | `GrantGovernor` | OZ Governor (Settings, Counting, Storage, Votes, Quorum, TimelockControl) plus guardian veto |
-| `Treasury` | The only value-moving grant path; validates against registry and enforces stored policy |
+| `Treasury` | The only discretionary grant payout path; validates against registry and enforces stored policy |
 | `GrantRegistry` | Grant/milestone lifecycle, commitment accounting, Treasury-only payout recording |
 | `GrantVestingRevocable` | Cliff + linear vesting, per-asset revocation, unvested return to Treasury |
 | `ProposalBuilder` | Typed proposal builders for create/approve/reject/pay/fund/revoke/cancel |
 | `ProposalRisk` | Preflight scanner for approvals, unknown selectors, role/upgrade/ownership changes |
+
+## Proposal lifecycle
+
+Grant actions are ordinary governance proposals; no separate admin multisig has
+grant privileges. The Governor queues and executes only through the Timelock.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor P as Token holder
+    actor V as Token holders
+    participant G as GrantGovernor
+    participant T as Timelock
+    participant X as GrantRegistry / Treasury
+
+    P->>G: propose(targets, values, calldatas, description)
+    Note over G: Voting delay and voting period
+    V->>G: vote
+    G->>T: queue(successful proposal)
+    Note over T: Timelock delay
+    G->>T: execute
+    T->>X: typed Registry or Treasury call
+```
+
+Proposal calldata is generated with `ProposalBuilder`; `SimulateProposal` and
+`ProposalRisk` provide a dry run and a pre-signing risk report. A successful
+proposal can invoke only the typed grant surface, never arbitrary Treasury
+calls.
+
+## Grant lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> Active: createGrant
+    Active --> Completed: all grant funds paid directly
+    Active --> Cancelled: cancel active grant
+    Active --> Revoked: revoke vesting
+    Completed --> [*]
+    Cancelled --> [*]
+    Revoked --> [*]
+```
+
+Immediate and milestone grants become `Completed` when every direct payout is
+recorded. A vesting grant remains `Active` while its funding sits in the vesting
+wallet; after revocation it becomes `Revoked`. `cancelGrant` releases the
+remaining commitment for an active grant with no vesting funding; funded vesting
+grants use the revoke path instead.
+
+### Milestone states
+
+```mermaid
+stateDiagram-v2
+    [*] --> Pending
+    Pending --> Submitted: recipient submits evidence
+    Submitted --> Approved: governance approval
+    Submitted --> Rejected: governance rejection
+    Rejected --> Submitted: recipient resubmits
+    Approved --> Paid: Treasury.payMilestone
+    Paid --> [*]
+```
+
+Evidence submission is recipient-only and does not approve a milestone. Approval
+and rejection happen only when the Timelock executes a governance proposal.
+
+Diagram-level details live in `docs/GRANT_LIFECYCLE.md`; invariants and trust
+boundaries are in `docs/INVARIANTS.md` and `docs/THREAT_MODEL.md`.
 
 ## Attack table
 
